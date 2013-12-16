@@ -153,23 +153,40 @@ int main(int argc, char *argv[])
     cellShapeList cellList(blocks.cells());
     pointField pts(blocks.points());
 
+
+    labelList v1(8), v2(8), v3(8);
+    v1[0] = 3; v1[1] = 0; v1[2] = 1; v1[3] = 2;
+    v1[4] = 7; v1[5] = 4; v1[6] = 5; v1[7] = 6;
+
+    v2[0] = 4; v2[1] = 5; v2[2] = 6; v2[3] = 7;
+    v2[4] = 5; v2[5] = 6; v2[6] = 7; v2[7] = 4;
+
+    v3[0] = 1; v3[1] = 2; v3[2] = 3; v3[3] = 0;
+    v3[4] = 0; v3[5] = 1; v3[6] = 2; v3[7] = 3;
+
     forAll (cellList, cellI)
     {
-        pointField cellPts(cellList[cellI].points(pts));
-
-        labelList ptLabels(cellList[cellI].pointsLabel(pts));
-
-        Info<< "Cell: " << cellI << " NbCells: " << cellPts.size()
-            << " PtsRef: " << nl;
-
+        const labelList ptLabels(cellList[cellI].pointsLabel(pts));
+        scalar qAt(0);
         forAll (ptLabels, ptI)
         {
-            Info<< ptLabels[ptI] << " " << cellPts[ptI] << nl;
+            const point p1(pts[ptLabels[v1[ptI]]] - pts[ptLabels[ptI]]);
+            const point p2(pts[ptLabels[v2[ptI]]] - pts[ptLabels[ptI]]);
+            const point p3(pts[ptLabels[v3[ptI]]] - pts[ptLabels[ptI]]);
+            const Tensor<scalar> mA(p1, p2, p3);
+
+            const scalar sigma(det(mA));
+
+            scalar qA(0);
+            if (sigma > 0)
+            {
+                qA = 3*std::pow(sigma, 2.0/3.0)/magSqr(mA);
+            }
+            qAt += qA;
         }
+        Info<< cellI << " " << qAt / 8 << endl;
 
-        Info<< endl;
-
-        pts[ptLabels[0]].x() = 2;
+//        pts[ptLabels[0]].x() = 2;
     }
 
     if (args.optionFound("blockTopology"))

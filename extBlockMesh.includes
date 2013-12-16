@@ -1,0 +1,12 @@
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/OpenFOAM/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/OSspecific/POSIX/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/finiteVolume/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/mesh/autoMesh/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/dynamicMesh/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/meshTools/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/fileFormats/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/triSurface/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/edgeMesh/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/parallel/decompose/decompositionMethods/lnInclude/
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/fvMotionSolver/lnInclude
+/mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/mesh/blockMesh/lnInclude/

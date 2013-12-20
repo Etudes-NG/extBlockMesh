@@ -62,6 +62,12 @@ Usage
 #include "Pair.H"
 #include "slidingInterface.H"
 
+//-----------------------------------------
+
+#include "fvmLaplacian.H"
+
+#include "dynamicFvMesh.H"
+
 using namespace Foam;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -150,8 +156,11 @@ int main(int argc, char *argv[])
     blockMesh blocks(meshDict, regionName);
 
     // FIXME avoid copy of cellShapeList & pointField
-    cellShapeList cellList(blocks.cells());
+    cellShapeList cellLst(blocks.cells());
     pointField pts(blocks.points());
+
+    // Storage of cells nodes in ordered way
+    labelListList cellNodes(cellLst.size());
 
 
     labelList v1(8), v2(8), v3(8);
@@ -164,19 +173,23 @@ int main(int argc, char *argv[])
     v3[0] = 1; v3[1] = 2; v3[2] = 3; v3[3] = 0;
     v3[4] = 0; v3[5] = 1; v3[6] = 2; v3[7] = 3;
 
-    forAll (cellList, cellI)
+    scalar qAmin(1);
+    scalar qAavg(0);
+    forAll (cellLst, cellI)
     {
-        const labelList ptLabels(cellList[cellI].pointsLabel(pts));
+        cellNodes[cellI].resize(8);
+        const labelList ptLabels(cellLst[cellI].pointsLabel(pts));
         scalar qAt(0);
         forAll (ptLabels, ptI)
         {
+            cellNodes[cellI][ptI] = ptLabels[ptI];
+
             const point p1(pts[ptLabels[v1[ptI]]] - pts[ptLabels[ptI]]);
             const point p2(pts[ptLabels[v2[ptI]]] - pts[ptLabels[ptI]]);
             const point p3(pts[ptLabels[v3[ptI]]] - pts[ptLabels[ptI]]);
             const Tensor<scalar> mA(p1, p2, p3);
 
             const scalar sigma(det(mA));
-
             scalar qA(0);
             if (sigma > 0)
             {
@@ -184,10 +197,26 @@ int main(int argc, char *argv[])
             }
             qAt += qA;
         }
-        Info<< cellI << " " << qAt / 8 << endl;
-
+        qAt /= 8;
+        if (qAt < qAmin)
+        {
+            qAmin = qAt;
+        }
+        qAavg += qAt;
 //        pts[ptLabels[0]].x() = 2;
     }
+    Info<< "Average quality: " << qAavg/cellLst.size()
+        << " Min quality: " << qAmin << endl;
+
+//    Foam::solve
+//    (
+//        fvm::laplacian
+//        (
+//            diffusivityPtr_->operator()(),
+//            cellMotionU_,
+//            "laplacian(diffusivity,cellMotionU)"
+//        )
+//    );
 
     if (args.optionFound("blockTopology"))
     {
@@ -251,6 +280,32 @@ int main(int argc, char *argv[])
         defaultFacesName,
         defaultFacesType
     );
+
+//    const Xfer<pointField>& meshPts = xferCopy(mesh.points());
+//    const Xfer<faceList>& meshFaces = xferCopy(mesh.faces());
+//    const Xfer<cellList>& meshCells = xferCopy(mesh.cells());
+//    const IOobject IOo
+//    (
+//        regionName,
+//        runTime.constant(),
+//        runTime
+//    );
+
+//    // Create dynamic mesh
+//    autoPtr<dynamicFvMesh> meshPtr
+//    (
+//        dynamicFvMesh::New
+//        (
+//            IOo,
+//            meshPts,
+//            meshFaces,
+//            meshCells
+//        )
+//    );
+
+//    dynamicFvMesh& dynMesh = meshPtr();
+
+
 
 
     // Read in a list of dictionaries for the merge patch pairs

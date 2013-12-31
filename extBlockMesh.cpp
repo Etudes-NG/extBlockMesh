@@ -66,7 +66,7 @@ Usage
 
 
 #include <set>
-#include <map>
+#include <vector>
 #include <algorithm>
 
 using namespace Foam;
@@ -107,8 +107,7 @@ scalar meanRatio(const pointField &H)
 pointField geometricTransformation
 (
     const pointField &H,
-    const scalar &cor,
-    const scalar &relaxFact
+    const scalar &cor
 )
 {
     // Labels for dual octahedron
@@ -194,10 +193,9 @@ pointField geometricTransformation
     const scalar scalingfact(mag(mh1)/mag(mh2));
 
     pointField C(8, c);
-    const pointField Hs(C + scalingfact*(Hp - C));
 
     // Return relaxation of new points
-    return (1 - relaxFact)*H + relaxFact*Hs;
+    return C + scalingfact*(Hp - C);
 }
 
 pointField pointsData(const labelList &labels, const pointField &points)
@@ -220,7 +218,7 @@ std::set<label> pointsToRevert
     std::set<label> pointsToRevert;
     forAll (cq, cellI)
     {
-        if (meanRatio(pointsData(cp[cellI], pts)) < VSMALL)
+        if (meanRatio(pointsData(cp[cellI], pts)) < VSMALL /*cq[cellI]*/)
         {
             forAll (cp[cellI], pointI)
             {
@@ -231,59 +229,35 @@ std::set<label> pointsToRevert
     return pointsToRevert;
 }
 
-std::pair
-<
-    std::multimap<scalar,label>::iterator,
-    std::multimap<scalar,label>::iterator
-> my_equal_range
+scalarList meshMeanRatio
 (
-    std::multimap<scalar, label>& container,
-    const scalar &target,
-    const scalar &epsilon = VSMALL
+    scalar &min,
+    scalar &avg,
+    scalarList &pwi,
+    const blockMesh &blocks,
+    const labelListList &cp
 )
 {
-    return std::make_pair
-    (
-        container.lower_bound(target - epsilon),
-        container.upper_bound(target + epsilon)
-    );
-}
-
-bool key_exists
-(
-    std::multimap<scalar, label>& container,
-    double target,
-    double epsilon = 0.00001
-)
-{
-    std::pair
-    <
-        std::multimap<scalar,label>::iterator,
-        std::multimap<scalar,label>::iterator
-    > range = my_equal_range(container, target, epsilon);
-    return range.first == range.second;
-}
-
-std::multimap<scalar,label>::iterator key
-(
-    std::multimap<scalar, label>& container,
-    double target,
-    double epsilon = 0.00001
-)
-{
-    std::pair
-    <
-        std::multimap<scalar,label>::iterator,
-        std::multimap<scalar,label>::iterator
-    > range = my_equal_range(container, target, epsilon);
-    if (range.first == range.second)
+    scalarList cq(blocks.cells().size());
+    min = 1.0;
+    avg = 0;
+    forAll (blocks.cells(), cellI)
     {
-        return range.first;
+        cq[cellI] = meanRatio(blocks.cells()[cellI].points(blocks.points()));
+
+        if (cq[cellI] < min)
+        {
+            min = cq[cellI]; // Store the new qMin
+        }
+        avg += cq[cellI];
+
+        forAll(cp[cellI], pointI)
+        {
+            pwi[cp[cellI][pointI]] += cq[cellI];
+        }
     }
-    else
-    {
-        return container.end();
-    }
+    avg /= blocks.cells().size();
+    return cq;
 }
 
 int main(int argc, char *argv[])
@@ -369,382 +343,285 @@ int main(int argc, char *argv[])
     IOdictionary meshDict(meshDictIO);
     blockMesh blocks(meshDict, regionName);
 
-    // Parameters
-    // Simultaneous GETMe
-    scalar qMin, qMax, relaxFact, pointAvg;
-    label maxSimultaneousIter(0);
-
-    // Sequential GETMe
-    scalar seqTransform, seqRelax, deltaPiI, deltaPiR, deltaPiS, seqMinCh;
-
-
+    // GETMe adaptive smoothing
     if (meshDict.found("smoother"))
     {
         dictionary smoothDict(meshDict.subDict("smoother"));
 
-        qMin = readScalar(smoothDict.lookup("factorQualityMin"));
-        qMax = readScalar(smoothDict.lookup("factorQualityMax"));
-        relaxFact = readScalar(smoothDict.lookup("relaxation"));
-        pointAvg = readScalar(smoothDict.lookup("averageMultipleCells"));
-        maxSimultaneousIter =
-                readLabel(smoothDict.lookup("maxSimultaneousIter"));
-        seqTransform =
-                readScalar(smoothDict.lookup("sequentialTransformationParam"));
-        seqRelax =
-                readScalar(smoothDict.lookup("sequentialRelaxationParam"));
-        seqMinCh =
-                readScalar(smoothDict.lookup("sequentialMinimalChange"));
-        deltaPiI = readScalar(smoothDict.lookup("deltaPiI"));
-        deltaPiR = readScalar(smoothDict.lookup("deltaPiR"));
-        deltaPiS = readScalar(smoothDict.lookup("deltaPiS"));
-    }
+        // Parameters
+        const scalar transParam =
+                readScalar(smoothDict.lookup("elemTransformParameter"));
+        const label maxGETMeIter =
+                readLabel(smoothDict.lookup("maxGETMeIter"));
+        const scalar improvTol =
+                readScalar(smoothDict.lookup("improvementTolerance"));
+        const scalarList rT =
+                readList<scalar>(smoothDict.lookup("qMeanRelaxationTable"));
+        const scalarList rTm =
+                readList<scalar>(smoothDict.lookup("qMinRelaxationTable"));
+        const label maxIneffIter =
+                readLabel(smoothDict.lookup("maxIneffectiveIteration"));
 
-    // Storage
-    labelListList pl(blocks.points().size());  // List of cell linked to points
-    labelListList cp(blocks.cells().size()); // list of points for each cell
-    List<std::set<label> > pc(blocks.points().size()); // cell linked to points
-    forAll (blocks.cells(), cellI)
-    {
-        cp[cellI] = blocks.cells()[cellI].pointsLabel();
-
-        // Store points conectivity
-        forAll (cp[cellI], ptI)
-        {
-            pl[cp[cellI][ptI]].append(cellI);
-            pc[cp[cellI][ptI]].insert(cellI);
-        }
-    }
-
-    // Set of mobil points
-    std::set<label> mobilPoints;
-    {
-        std::set<label> allPoints;
-        label val(0);
-        forAll (blocks.points(), pointI)
-        {
-            allPoints.insert(allPoints.end(),val);
-            ++val;
-        }
-
-        // Create a set of fixed points
-        std::set<label> fixedPoints;
-        forAll (blocks.patches(), patchI)
-        {
-            forAll (blocks.patches()[patchI], faceI)
-            {
-                const labelList facePoints(
-                            blocks.patches()[patchI][faceI].pointsLabel());
-                forAll (facePoints, pointI)
-                {
-                    fixedPoints.insert(facePoints[pointI]);
-                }
-            }
-        }
-
-        std::set_difference
-        (
-            allPoints.begin(),
-            allPoints.end(),
-            fixedPoints.begin(),
-            fixedPoints.end(),
-            std::inserter(mobilPoints, mobilPoints.begin())
-        );
-    }
-
-    label nbIterations(0);
-    label nbInvalidCells;
-    scalar qualityMin(0.0);
-    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    // Simultaneous GETMe smoothing
-    while (nbIterations < maxSimultaneousIter)
-    {
-        scalarList cq(blocks.cells().size(), 0.0); // List of cell quality
-        scalar qAmin(1.0);
-        scalar qAavg(0.0);
-
-        nbInvalidCells = 0;
-        // Storage of new points position
-        List<pointField> pp(blocks.points().size());
+        // Storage
+        labelListList pl(blocks.points().size());  // List of cell linked to points
+        labelListList cp(blocks.cells().size()); // list of points for each cell
+        List<std::set<label> > pc(blocks.points().size()); // cell linked to points
+        List<std::set<label> > cn(blocks.cells().size()); // cell linked to cells
+        scalarList sqE(blocks.points().size(), 0.0); // Sum of cell qual for each pt
         forAll (blocks.cells(), cellI)
         {
-            // Store cells points
-            const pointField H(blocks.cells()[cellI].points(blocks.points()));
+            cp[cellI] = blocks.cells()[cellI].pointsLabel();
 
-            // Compute quality
-            cq[cellI] = meanRatio(H);
-
-            if (cq[cellI] < VSMALL)
+            // Store points conectivity
+            forAll (cp[cellI], ptI)
             {
-                ++nbInvalidCells;
-            }
-            if (cq[cellI] < qAmin)
-            {
-                qAmin = cq[cellI]; // Store the new qMin
-            }
-            qAavg += cq[cellI];
-
-            // Compute the tranformed hex
-            const scalar cor(qMin + (qMax - qMin)*(1.0 - cq[cellI]));
-            const pointField Hr(
-                geometricTransformation(H, cor, relaxFact));
-
-            // Store the tranformed hex in changed points
-            forAll (H, ptI)
-            {
-                pp[cp[cellI][ptI]].append(Hr[ptI]);
+                pl[cp[cellI][ptI]].append(cellI);
+                pc[cp[cellI][ptI]].insert(cellI);
             }
         }
-        qualityMin = qAmin;
-
-        Info<< "Iteration: " << nbIterations << " Avg quality: "
-            << qAavg/blocks.cells().size() << " Min quality: " << qAmin
-            << " Invalid cells: " << nbInvalidCells << endl;
-
-        const pointField pOld(blocks.points());
-        for
-        (
-            std::set<label>::iterator pointI = mobilPoints.begin();
-            pointI != mobilPoints.end();
-            ++pointI
-        )
-        {
-            scalar wj(0.0);
-            point wp(0.0, 0.0, 0.0);
-            forAll (pl[(*pointI)], cellI)
-            {
-                const scalar wji(std::pow(1.0 - cq[pl[(*pointI)][cellI]], pointAvg));
-                wj += wji;
-                wp += pp[(*pointI)][cellI]*wji;
-            }
-            const label ni(pl[(*pointI)].size());
-            wj /= ni;
-            wp /= ni;
-
-            blocks.setPoint(*pointI, wp/(wj + VSMALL));
-        }
-
-        // Revert points when lead to invalid cell
-        std::set<label> pointsToReverts(pointsToRevert(blocks.points(), cp, cq));
-        while (pointsToReverts.size() > nbInvalidCells)
+        forAll (blocks.points(), ptI)
         {
             for
             (
-                std::set<label>::iterator iter = pointsToReverts.begin();
-                iter != pointsToReverts.end();
+                std::set<label>::iterator iter = pc[ptI].begin();
+                iter != pc[ptI].end();
                 ++iter
             )
             {
-                blocks.setPoint((*iter), pOld[(*iter)]);
+                cn[*iter].insert(ptI);
             }
-            Info<< "   Reverted " << label(pointsToReverts.size())
-                << " cells" << endl;
-
-            pointsToReverts = pointsToRevert(blocks.points(), cp, cq);
         }
-        ++nbIterations;
-    }
-    if (nbIterations != 0)
-    {
-        Info<< "Simulaneous GETMe smoothing in " << nbIterations
-            << " iterations" << endl;
-    }
 
-    std::multimap<scalar, label> qualityMap;
-    std::map<label,scalar> cellMap;
-    forAll (blocks.cells(), cellI)
-    {
-        const scalar qual
-        (
-            meanRatio
-            (
-                blocks.cells()[cellI].points
-                (
-                    blocks.points()
-                )
-            )
-        );
-
-        qualityMap.insert(std::pair<scalar, label>(qual, cellI));
-        cellMap.insert(std::pair<label, scalar>(cellI, qual));
-    }
-
-    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    // Sequential GETMe smoothing
-    nbIterations = 0;
-    scalar oldMinQual(qualityMap.begin()->first);
-    label cellNb(qualityMap.begin()->second);
-    label previous(-1);
-    label noEffStep(0);
-    label maxNoEffStep(0);
-    while
-    (
-        noEffStep < 10 // No change in 10 iterations
-    )
-    {        
-        // Worst cell points
-        const pointField H(blocks.cells()[cellNb].points(blocks.points()));
-        const labelList ptLabels(cp[cellNb]);
-
-        // Worst cell points transformed
-        const pointField Hp(geometricTransformation(H, seqTransform, seqRelax));
-
-        // Update points in mesh
-        std::set<label> impactedCell;
-        forAll (ptLabels, pointI)
+        // Set of mobil points
+        std::set<label> mobilPoints;
         {
-            blocks.setPoint(ptLabels[pointI], Hp[pointI]);
-
-            for
-            (
-                std::set<label>::iterator iter = pc[ptLabels[pointI]].begin();
-                iter != pc[ptLabels[pointI]].end();
-                ++iter
-            )
+            std::set<label> allPoints;
+            label val(0);
+            forAll (blocks.points(), pointI)
             {
-                impactedCell.insert(*iter);
+                allPoints.insert(allPoints.end(),val);
+                ++val;
             }
-        }
 
-        scalar lowerQual(1.0);
-        scalar nQual;
-        for
-        (
-            std::set<label>::iterator iter = impactedCell.begin();
-            iter != impactedCell.end();
-            ++iter
-        )
-        {
-            const scalar cQual
+            // Create a set of fixed points
+            std::set<label> fixedPoints;
+            forAll (blocks.patches(), patchI)
+            {
+                forAll (blocks.patches()[patchI], faceI)
+                {
+                    const labelList facePoints(
+                                blocks.patches()[patchI][faceI].pointsLabel());
+                    forAll (facePoints, pointI)
+                    {
+                        fixedPoints.insert(facePoints[pointI]);
+                    }
+                }
+            }
+
+            std::set_difference
             (
-                meanRatio(blocks.cells()[*iter].points(blocks.points()))
+                allPoints.begin(),
+                allPoints.end(),
+                fixedPoints.begin(),
+                fixedPoints.end(),
+                std::inserter(mobilPoints, mobilPoints.begin())
             );
-            if (cQual < lowerQual)
-            {
-                lowerQual = cQual;
-            }
-            if (*iter == cellNb)
-            {
-                nQual = cQual;
-            }
         }
 
-        scalar penalty;
-        if (lowerQual < VSMALL)
-        { // cell get invalid
-            penalty = deltaPiI;
+        label nbIterations(0);
+        scalar qualityAvg, qualityMin;
+        scalarList cq(meshMeanRatio(qualityMin, qualityAvg, sqE, blocks, cp));
 
-            // Get back to previous state
-            forAll (ptLabels, pointI)
-            {
-                blocks.setPoint(ptLabels[pointI], H[pointI]);
-            }
-        }
-        else
+        const scalar targetQual(1.0);
+
+        // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        // Simultaneous GETMe smoothing
+        Info<< "start GETMe smoothing with:"  << nl
+            << "elemTransformParameter: " << transParam << nl
+            << "Mean relaxation table:  " << rT << nl
+            << " avg quality: " << qualityAvg
+            << ", min quality: " << qualityMin << endl;
+
+        while (nbIterations < maxGETMeIter)
         {
-            if (previous == cellNb)
+            // Storage of Temporary Nodes And Weights
+            pointField pi(blocks.points().size(), point(0.0, 0.0, 0.0));
+            scalarList wj(blocks.points().size(), 0.0);
+
+            std::set<label> tp; // Transformed nodes
+            forAll (blocks.cells(), cellI)
             {
-                penalty = deltaPiR;
-            }
-            else
-            {
-                penalty = deltaPiS;
-            }
-
-
-
-            // Clean the old quality map
-            for
-            (
-                std::set<label>::iterator iter = impactedCell.begin();
-                iter != impactedCell.end();
-                ++iter
-            )
-            {
-                // Remove the old quality
-                // *iter cell ref
-                const scalar oldQual(cellMap.find(*iter)->second);
-                std::pair
-                <
-                    std::multimap<scalar,label>::iterator,
-                    std::multimap<scalar,label>::iterator
-                > equalCells (my_equal_range(qualityMap, oldQual));
-
-                if (equalCells.first == qualityMap.end())
-                { // Case not found in map
-                    Info<< "Cell not found" << endl;
-                }
-                else if (equalCells.first == equalCells.second)
-                { // Case found one item only
-
-                    qualityMap.erase(equalCells.first);
-                    scalar upQual;
-                    if (*iter == cellNb)
-                    {
-                        upQual = nQual + penalty;
-                    }
-                    else
-                    {
-                        upQual = oldQual;
-                    }
-                    qualityMap.insert(std::pair<scalar, label> (upQual, *iter));
-                    cellMap[*iter] = upQual;
-                }
-                else
-                { // Case multiple cells found
-                    for
+                if (cq[cellI] < targetQual)
+                {
+                    const pointField H
                     (
-                        std::multimap<scalar,label>::iterator it = equalCells.first;
-                        it != equalCells.second && it != qualityMap.end();
-                        ++it
-                    )
+                        blocks.cells()[cellI].points(blocks.points())
+                    );
+                    const pointField Hr(geometricTransformation(H, transParam));
+
+                    // Add Transformed Element Nodes And Weights
+                    forAll (cp[cellI], pointI)
                     {
-                        if (it->second == *iter)
-                        {
-                            qualityMap.erase(it);
-                            scalar upQual;
-                            if (*iter == cellNb)
-                            {
-                                upQual = nQual + penalty;
-                            }
-                            else
-                            {
-                                upQual = oldQual;
-                            }
-                            qualityMap.insert(std::pair<scalar, label> (upQual, *iter));
-                            cellMap[*iter] = upQual;
+                        // compute the associated weight
+                        const scalar wji
+                        (
+                                    std::sqrt(sqE[cp[cellI][pointI]] /
+                            (cn[cellI].size()*cq[cellI]))
+                        );
+
+                        // add the weight to temporary weighted sum
+                        wj[cp[cellI][pointI]] += wji;
+
+                        // add the resul weighted nodes to temporary weighted pt
+                        pi[cp[cellI][pointI]] += Hr[pointI] * wji;
+
+                        // add point to set of tranformed points
+                        tp.insert(cp[cellI][pointI]);
+                    }
+                }
+            }
+
+            // Create set of transformed and non fixed points
+            std::set<label> tn; // Transformed Nodes
+            std::set_intersection
+            (
+                tp.begin(),
+                tp.end(),
+                mobilPoints.begin(),
+                mobilPoints.end(),
+                std::inserter(tn, tn.begin())
+            );
+
+            forAll (blocks.cells(), cellI)
+            {
+                if (cq[cellI] > targetQual)
+                { // Unstransformed cell
+                    forAll (cp[cellI], pointI)
+                    {
+                        if (tn.find(cp[cellI][pointI]) != tn.end())
+                        { // Unstranformed & have point transformed
+                            // compute the associated weight
+                            const label pt(cp[cellI][pointI]);
+                            const scalar wji
+                            (
+                                std::sqrt(sqE[pt] / (cn[pt].size()*cq[cellI]))
+                            );
+
+                            // add the weight to temporary weighted sum
+                            wj[pt] += wji;
+
+                            // add the weighted nodes to temporary weighted pt
+                            pi[pt] += blocks.points()[pt] * wji;
+
+                            Info<< "is da\n";
                         }
                     }
                 }
             }
-        }
 
-        const scalar newMinQual(qualityMap.begin()->first);
-        if (newMinQual >= oldMinQual)
-        { // Mesh get better
-            noEffStep = 0;
-        }
-        else
-        {
-            ++noEffStep;
-            if (noEffStep > maxNoEffStep)
-            {
-                ++maxNoEffStep;
+            // compute new nodes
+            for
+            (
+                std::set<label>::iterator pointI = tn.begin();
+                pointI != tn.end();
+                ++pointI
+            )
+            { // For all transformed node
+                if (wj[*pointI] > VSMALL)
+                {
+                    pi[*pointI] /= wj[*pointI];
+                }
+                else
+                {
+                    Info<< wj[*pointI] << "tututu\n";
+                    pi[*pointI] = blocks.points()[*pointI];
+                }
+
             }
+
+            // Iterative Node Relaxation
+            pointField pip(blocks.points()); // Storage of relaxed new nodes
+            labelList nR(blocks.points().size(), 0);
+            label totalReversedCells(0), nbRelaxations(0);
+            while (!tn.empty())
+            {
+                for
+                (
+                    std::set<label>::iterator ptI = tn.begin();
+                    ptI != tn.end();
+                    ++ptI
+                )
+                {
+                    const scalar r(rT[nR[*ptI]]);
+                    pip[*ptI] = (1.0 - r)*blocks.points()[*ptI] + r*pi[*ptI];
+                }
+
+                // Test new cells
+                tn.clear();
+                forAll (blocks.cells(), cellI)
+                {
+                    pointField Ht(cp[cellI].size());
+                    forAll (cp[cellI], ptI)
+                    {
+                        Ht[ptI] = pip[cp[cellI][ptI]];
+                    }
+
+                    if (meanRatio(Ht) < /*VSMALL*/ qualityMin)
+                    { // Cell is invalid
+                        forAll (cp[cellI], ptI)
+                        { // Insert cell point in point invalid list
+                            tn.insert(cp[cellI][ptI]);
+                        }
+                    }
+                }
+                label reversedCells(0);
+                for
+                (
+                    std::set<label>::iterator ptI = tn.begin();
+                    ptI != tn.end();
+                    ++ptI
+                )
+                { // For each invalid node
+                    if(nR[*ptI] < (rT.size() - 1))
+                    {
+                        ++nR[*ptI];
+                    }
+                    ++reversedCells;
+                }
+                totalReversedCells += reversedCells;
+                ++nbRelaxations;
+            }
+            if (totalReversedCells != 0)
+            {
+                Info<< "Reversed: " << totalReversedCells << " cells in "
+                    << nbRelaxations << " relaxations\n";
+            }
+
+            // Update the mesh with new points
+            forAll (blocks.points(), ptI)
+            {
+                blocks.setPoint(ptI, pip[ptI]);
+            }
+
+            // reset sqE
+            sqE = scalarList(blocks.points().size(), 0.0);
+            cq = meshMeanRatio(qualityMin, qualityAvg, sqE, blocks, cp);
+
+            Info<< "  Iter " << nbIterations << "\t avg quality: "
+                << qualityAvg << "\t min quality: " << qualityMin << endl;
+
+            ++nbIterations;
         }
-
-        // Values for next step
-        oldMinQual = newMinQual + seqMinCh;
-        previous = cellNb;
-        cellNb = qualityMap.begin()->second;
-        ++nbIterations;
-    }
-    if (nbIterations != 0)
-    {
-        Info<< "Sequential GETMe smoothing in " << nbIterations
-            << " iterations" << endl
-            << " Minimal quality is: " << oldMinQual << endl;
+        if (nbIterations != 0)
+        {
+            Info<< "GETMe smoothing in " << nbIterations
+                << " iterations" << endl;
+        }
     }
 
+
+    // const pointField pOld(blocks.points());
+    // blocks.setPoint(*pointI, wp/(wj + VSMALL));
 
     // http://www.ann.jussieu.fr/~frey/papers/meshing/Varziotis%20D.,%20A%20dual%20element%20based%20geometric%20element%20transformation%20method%20for%20all-hexahedral%20mesh%20smoothing.pdf
 

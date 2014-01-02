@@ -1,25 +1,16 @@
 EXE_INC = \
     /* -g -DFULLDEBUG -O0 */ \
-    -I$(LIB_SRC)/parallel/decompose/decompositionMethods/lnInclude \
-    -I$(LIB_SRC)/mesh/autoMesh/lnInclude \
-    -I$(LIB_SRC)/meshTools/lnInclude \
-    -I$(LIB_SRC)/fileFormats/lnInclude \
-    -I$(LIB_SRC)/triSurface/lnInclude \
-    -I$(LIB_SRC)/dynamicFvMesh/lnInclude \
-    -I$(LIB_SRC)/edgeMesh/lnInclude \
-    -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(LIB_SRC)/mesh/blockMesh/lnInclude \
-    -I$(LIB_SRC)/sampling/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude \
     -I$(LIB_SRC)/dynamicMesh/lnInclude \
+    -I/mnt/hgfs/Data/Perso/Recherche/Programmation/extBlockMesh/code/blockMeshSmoother
 
 EXE_LIBS = \
-    -lfiniteVolume \
-    -ldecompositionMethods \
-    -L$(FOAM_LIBBIN)/dummy -lptscotchDecomp \
-    -lmeshTools \
-    -lfileFormats \
-    -ldynamicFvMesh \
-    -ldynamicMesh \
-    -lautoMesh \
     -lblockMesh \
-    -lsampling \
+    -lmeshTools \
+    -ldynamicMesh \
+    -L$(FOAM_USER_LIBBIN) \
+    -lblockMeshSmoother
+    
+/*LIB_LIBS = \
+    -lblockMeshSmoother*/

@@ -10,3 +10,4 @@
 /mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/parallel/decompose/decompositionMethods/lnInclude/
 /mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/fvMotionSolver/lnInclude
 /mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x-deb/src/mesh/blockMesh/lnInclude/
+/mnt/hgfs/Data/Perso/Recherche/Programmation/extBlockMesh/code/blockMeshSmoother/

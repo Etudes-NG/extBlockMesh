@@ -1,1 +1,5 @@
 extBlockMesh.cpp
+blockMeshSmoother/blockMeshSmoother.h
+blockMeshSmoother/blockMeshSmoother.cpp
+blockMeshSmoother/cellSmoother.h
+blockMeshSmoother/cellSmoother.cpp

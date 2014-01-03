@@ -21,7 +21,14 @@ class cellSmoother
 
     // Private member functions
 
-        //-
+        //- tetrahedral mean ratio
+        scalar tetrahedralMeanRatio
+        (
+            const label &pt,
+            const label &pt1,
+            const label &pt2,
+            const label &pt3
+        ) const;
 public:
     // Constructors
 

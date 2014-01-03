@@ -3,6 +3,7 @@
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
+
 Foam::cellSmoother::cellSmoother(const pointField &H)
     :
       points_(H)
@@ -11,39 +12,83 @@ Foam::cellSmoother::cellSmoother(const pointField &H)
 
 // * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
 
+Foam::scalar Foam::cellSmoother::tetrahedralMeanRatio
+(
+    const label &pt,
+    const label &pt1,
+    const label &pt2,
+    const label &pt3
+) const
+{
+    const Tensor<scalar> mA
+    (
+        points_[pt1] - points_[pt],
+        points_[pt2] - points_[pt],
+        points_[pt3] - points_[pt]
+    );
+    const scalar sigma(det(mA));
+    if (sigma > VSMALL)
+    {
+        return 3.0*std::pow(sigma, 2.0/3.0)/magSqr(mA);
+    }
+
+    return 0.0;
+}
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 Foam::scalar Foam::cellSmoother::meanRatio() const
 {
-    // Labels for quality computation
-    labelList v1(8), v2(8), v3(8);
-    v1[0] = 3; v1[1] = 0; v1[2] = 1; v1[3] = 2;
-    v1[4] = 7; v1[5] = 4; v1[6] = 5; v1[7] = 6;
-
-    v2[0] = 4; v2[1] = 5; v2[2] = 6; v2[3] = 7;
-    v2[4] = 5; v2[5] = 6; v2[6] = 7; v2[7] = 4;
-
-    v3[0] = 1; v3[1] = 2; v3[2] = 3; v3[3] = 0;
-    v3[4] = 0; v3[5] = 1; v3[6] = 2; v3[7] = 3;
-
-    scalar cQa(0.0);
-    forAll (points_, ptI)
+    scalar qn(tetrahedralMeanRatio(0, 3, 4, 1));
+    if (qn < VSMALL)
     {
-        const point p1(points_[v1[ptI]] - points_[ptI]);
-        const point p2(points_[v2[ptI]] - points_[ptI]);
-        const point p3(points_[v3[ptI]] - points_[ptI]);
-        const Tensor<scalar> mA(p1, p2, p3);
-
-        const scalar sigma(det(mA));
-
-        if (sigma > VSMALL)
-        {
-            cQa += 3*std::pow(sigma, 2.0/3.0)/magSqr(mA);
-        }
+        return 0.0;
     }
+    scalar qt(qn);
+    qn = tetrahedralMeanRatio(1, 0, 5, 2);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
+    qn = tetrahedralMeanRatio(2, 1, 6, 3);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
+    qn = tetrahedralMeanRatio(3, 2, 7, 0);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
+    qn = tetrahedralMeanRatio(4, 7, 5, 0);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
+    qn = tetrahedralMeanRatio(5, 4, 6, 1);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
+    qn = tetrahedralMeanRatio(6, 5, 7, 2);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
+    qn = tetrahedralMeanRatio(7, 6, 4, 3);
+    if (qn < VSMALL)
+    {
+        return 0.0;
+    }
+    qt += qn;
 
-    return cQa/8.0;
+    return qt/8.0;
 }
 
 Foam::pointField Foam::cellSmoother::geometricTranform

@@ -96,8 +96,7 @@ class blockMeshSmoother
             pointField &pi,
             std::set<label> &tn,
             const scalarList &rT,
-            labelList &relaxedCells,
-            const label cycle
+            labelList &relaxedCells
         );
 
 public:

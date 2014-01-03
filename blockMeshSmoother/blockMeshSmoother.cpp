@@ -271,8 +271,7 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
     pointField &pi,
     std::set<label> &tn,
     const scalarList &rT,
-    labelList &relaxedCells,
-    const label cycle
+    labelList &relaxedCells
 )
 {
     // Relaxed nodes
@@ -280,6 +279,7 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
 
     // Relaxation level
     labelList nR(blockMeshPtr_->points().size(), 0);
+    const scalar qualLimite(readScalar(dict_.lookup("qualityLimit")));
 
     while (!tn.empty())
     {
@@ -311,35 +311,8 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
         tn.clear();
         forAll (blockMeshPtr_->cells(), cellI)
         {
-            if
-            (
-                cq[cellI] <
-                (
-                 cellQuality_[cellI]*readScalar
-                 (
-                    dict_.lookup("meanQualityTreshold")
-                 )
-                )
-                && cycle == 0
-            )
+            if(cq[cellI] < qualLimite)
             { // Set point to reset
-                forAll (cellPoints_[cellI], ptI)
-                { // Insert cell point in point to move
-                    tn.insert(cellPoints_[cellI][ptI]);
-                }
-            }
-            if
-            (
-                cycle == 1 &&
-                cq[cellI] <
-                (
-                    cellQuality_[cellI]*readScalar
-                    (
-                        dict_.lookup("minQualityTreshold")
-                    )
-                )
-            )
-            {
                 forAll (cellPoints_[cellI], ptI)
                 { // Insert cell point in point to move
                     tn.insert(cellPoints_[cellI][ptI]);
@@ -487,8 +460,7 @@ void Foam::blockMeshSmoother::smoothing(const argList &args)
                 pi,
                 tn,
                 rT,
-                nbRelaxCells,
-                cycle
+                nbRelaxCells
             )
         );
 

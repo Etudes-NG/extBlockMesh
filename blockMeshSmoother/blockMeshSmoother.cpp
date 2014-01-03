@@ -192,7 +192,19 @@ Foam::blockMeshSmoother::blockMeshSmoother
                         faceEdge.insert(edge);
                     }
 
-                    Info<< "Set from pointsLabels   ";
+
+
+                    std::set<std::set<label> > bndEdge;
+                    std::set_difference
+                    (
+                        faceEdge.begin(),
+                        faceEdge.end(),
+                        bndFaceConnectEdges[patchI][faceI].begin(),
+                        bndFaceConnectEdges[patchI][faceI].end(),
+                        std::inserter(bndEdge, bndEdge.begin())
+                    );
+
+                    Info<< "Set from faceEdge ";
                     for
                     (
                         std::set<std::set<label> >::iterator iter1 = faceEdge.begin();
@@ -212,7 +224,6 @@ Foam::blockMeshSmoother::blockMeshSmoother
                         Info<< " - ";
                     }
                     Info<< nl;
-
                     Info<< "Set from bndFaceNeiboor ";
                     for
                     (
@@ -233,16 +244,26 @@ Foam::blockMeshSmoother::blockMeshSmoother
                         Info<< " - ";
                     }
                     Info<< nl;
-
-                    std::set<std::set<label> > bndEdge;
-                    std::set_difference
+                    Info<< "Set from bndEdge ";
+                    for
                     (
-                        faceEdge.begin(),
-                        faceEdge.end(),
-                        bndFaceNeiboor[patchI][faceI].begin(),
-                        bndFaceNeiboor[patchI][faceI].end(),
-                        std::inserter(bndEdge, bndEdge.begin())
-                    );
+                        std::set<std::set<label> >::iterator iter1 = bndEdge.begin();
+                        iter1 != bndEdge.end();
+                        ++iter1
+                    )
+                    {
+                        for
+                        (
+                            std::set<label>::iterator iter2 = iter1->begin();
+                            iter2 != iter1->end();
+                            ++iter2
+                        )
+                        {
+                            Info<< (*iter2) << " ";
+                        }
+                        Info<< " - ";
+                    }
+                    Info<< nl;
 
                     Info<< label(bndEdge.size()) << " - " << label(faceEdge.size()) << endl;
                     patchEdges[patchI].insert(bndEdge);

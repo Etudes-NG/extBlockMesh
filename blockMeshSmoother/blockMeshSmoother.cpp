@@ -26,6 +26,20 @@ Foam::blockMeshSmoother::blockMeshSmoother
     writeIntermediateMesh_(args.optionFound("writeStep")),
     fixBoundary_(args.optionFound("fixBoundary"))
 {
+    Info<< "\nGETMe smoothing with:"  << nl
+        << "  - Max iterations            : "
+        << readLabel(dict_.lookup("maxGETMeIter")) << nl
+        << "  - Tranformation parameter   : "
+        << readScalar(dict_.lookup("elemTransformParameter")) << nl
+        << "  - Improvement tolerance     : "
+        << readScalar(dict_.lookup("improvementTolerance")) << nl
+        << "  - Max ineffective iteration : "
+        << readScalar(dict_.lookup("maxIneffectiveIteration")) << nl
+        << "  - Mean relaxation table     : "
+        << readList<scalar>(dict_.lookup("qMeanRelaxationTable")) << nl
+        << "  - Min relaxation table      : "
+        << readList<scalar>(dict_.lookup("qMinRelaxationTable")) << nl;
+
     forAll (blockMeshPtr_->cells(), cellI)
     {
         cellPoints_[cellI] = blockMeshPtr_->cells()[cellI].pointsLabel();
@@ -64,6 +78,17 @@ Foam::blockMeshSmoother::blockMeshSmoother
     Info<< "Nb of patches: " << blockMeshPtr_->patches().size() << endl;
     if (fixBoundary_)
     {
+        std::set<label> edgesPoints;
+        forAll (blockMeshPtr_->patches(), patchI)
+        {
+            forAll (blockMeshPtr_->patches()[patchI], faceI)
+            {
+//                forAll (facePoints, pointI)
+//                {
+//                }
+            }
+        }
+
         forAll (blockMeshPtr_->patches(), patchI)
         {
             forAll (blockMeshPtr_->patches()[patchI], faceI)
@@ -127,20 +152,6 @@ Foam::blockMeshSmoother::blockMeshSmoother
     {
         mobilPoints_ = allPoints;
     }
-
-    Info<< "\nGETMe smoothing with:"  << nl
-        << "  - Max iterations            : "
-        << readLabel(dict_.lookup("maxGETMeIter")) << nl
-        << "  - Tranformation parameter   : "
-        << readScalar(dict_.lookup("elemTransformParameter")) << nl
-        << "  - Improvement tolerance     : "
-        << readScalar(dict_.lookup("improvementTolerance")) << nl
-        << "  - Max ineffective iteration : "
-        << readScalar(dict_.lookup("maxIneffectiveIteration")) << nl
-        << "  - Mean relaxation table     : "
-        << readList<scalar>(dict_.lookup("qMeanRelaxationTable")) << nl
-        << "  - Min relaxation table      : "
-        << readList<scalar>(dict_.lookup("qMinRelaxationTable")) << nl;
 }
 
 // * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
@@ -401,8 +412,8 @@ void Foam::blockMeshSmoother::smoothing(const argList &args)
 
     meshMeanRatio();
 
-    Info<< "\nAnalysis before start:   avg quality = " << meanQuality_
-        << ", min quality = " << minQuality_ << endl;
+    Info<< "\nAnalysis before start: mean quality = " << meanQuality_
+        << ",\t min quality = " << minQuality_ << endl;
 
     label nbIterations(0), noMinImproveCounter(0), cycle(0), prevCycle(cycle);
 
@@ -487,24 +498,10 @@ void Foam::blockMeshSmoother::smoothing(const argList &args)
 
         computeNewNodes(pi, wj, tn);
 
-        labelList nbRelaxCells;
-        const pointField pip
-        (
-            iterativeNodeRelaxation
-            (
-                pi,
-                tn,
-                rT,
-                nbRelaxCells
-            )
-        );
+        labelList nbRelCel;
 
         // Update the mesh with new points
-        // FIXME change setPoint to change all points
-        forAll (blockMeshPtr_->points(), ptI)
-        {
-            blockMeshPtr_->setPoint(ptI, pip[ptI]);
-        }
+        blockMeshPtr_->setPoints(iterativeNodeRelaxation(pi, tn, rT, nbRelCel));
 
         // Compute new min and avg quality
         meshMeanRatio();
@@ -570,16 +567,8 @@ void Foam::blockMeshSmoother::smoothing(const argList &args)
         }
         }
 
-        Info<< "iter " << nbIterations << "\t avg quality = "
-            << meanQuality_ << "\t min quality = " << minQuality_
-            << "\t DqMin " << qMinImprove << " \t "
-            <<"\t DqMean " << qMeanImprove << " \t "
-            << noMinImproveCounter;
-//        forAll (nbRelaxCells, relaxI)
-//        {
-//            Info<< "\t" << nbRelaxCells[relaxI];
-//        }
-        Info<< endl;
+        Info<< "iter " << nbIterations << "\t mean quality = "
+            << meanQuality_ << "\t min quality = " << minQuality_ << endl;
 
         previousMean = meanQuality_;
         previousMin = minQuality_;

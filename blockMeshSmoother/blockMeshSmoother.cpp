@@ -38,7 +38,7 @@ Foam::blockMeshSmoother::blockMeshSmoother
         << "  - Mean relaxation table     : "
         << readList<scalar>(dict_.lookup("qMeanRelaxationTable")) << nl
         << "  - Min relaxation table      : "
-        << readList<scalar>(dict_.lookup("qMinRelaxationTable")) << nl;
+        << readList<scalar>(dict_.lookup("qMinRelaxationTable")) << nl << nl;
 
     forAll (blockMeshPtr_->cells(), cellI)
     {
@@ -75,18 +75,205 @@ Foam::blockMeshSmoother::blockMeshSmoother
     // Create a set of fixed points
     std::set<label> fixedPoints;
 
-    Info<< "Nb of patches: " << blockMeshPtr_->patches().size() << endl;
     if (fixBoundary_)
     {
-        std::set<label> edgesPoints;
+        // Search edges
+        List<std::set<std::set<label> > > patchFacesPoints
+        (
+            blockMeshPtr_->patches().size()
+        );
+
+        //       points labels              patch  face
+        std::map<std::set<label>, std::pair<label, label> > bndFacesLoc;
+
+        //patch  face  points labels
+        List<List<std::set<label> > > bndFacesName
+        (
+            blockMeshPtr_->patches().size()
+        );
+
+        forAll (blockMeshPtr_->patches(), patchI)
+        {
+            bndFacesName[patchI].resize
+            (
+                blockMeshPtr_->patches()[patchI].size()
+            );
+
+            std::set<std::set<label> > facesPointsSet;
+            forAll (blockMeshPtr_->patches()[patchI], faceI)
+            {
+                const labelList facePoints
+                (
+                    blockMeshPtr_->patches()[patchI][faceI].pointsLabel()
+                );
+                std::set<label> facePts;
+                forAll (facePoints, pointI)
+                {
+                    facePts.insert(facePoints[pointI]);
+                }
+                facesPointsSet.insert(facePts);
+                bndFacesLoc.insert
+                (
+                    std::pair<std::set<label>, std::pair<label, label> >
+                    (
+                        facePts,
+                        std::pair<label, label>(patchI, faceI)
+                    )
+                );
+                bndFacesName[patchI][faceI] = facePts;
+            }
+            patchFacesPoints[patchI] = facesPointsSet;
+        }
+        //                 patch  face    neiboor set
+        List<List<std::set<std::set<label> > > > bndFaceNeiboor
+        (
+            blockMeshPtr_->patches().size()
+        );
+        List<List<std::set<std::set<label> > > > bndFaceConnectEdges
+        (
+            blockMeshPtr_->patches().size()
+        );
+
+        forAll (blockMeshPtr_->patches(), patchI)
+        {
+            bndFaceNeiboor[patchI].resize
+            (
+                blockMeshPtr_->patches()[patchI].size()
+            );
+            bndFaceConnectEdges[patchI].resize
+            (
+                blockMeshPtr_->patches()[patchI].size()
+            );
+
+            forAll (blockMeshPtr_->patches()[patchI], faceI)
+            { // for all faces of this patch
+                forAll (blockMeshPtr_->patches()[patchI], faceJ)
+                { // Test all faces of this patch
+                    std::set<label> commonPts;
+                    std::set_intersection
+                    (
+                        bndFacesName[patchI][faceI].begin(),
+                        bndFacesName[patchI][faceI].end(),
+                        bndFacesName[patchI][faceJ].begin(),
+                        bndFacesName[patchI][faceJ].end(),
+                        std::inserter(commonPts, commonPts.begin())
+                    );
+
+                    if (commonPts.size() == 2)
+                    { // Faces share an edge
+                        bndFaceNeiboor[patchI][faceI].insert(bndFacesName[patchI][faceJ]);
+                        bndFaceConnectEdges[patchI][faceI].insert(commonPts);
+                    }
+                }
+            }
+        }
+
+        List<std::set<std::set<std::set<label> > > > patchEdges
+        (
+            blockMeshPtr_->patches().size()
+        );
+
         forAll (blockMeshPtr_->patches(), patchI)
         {
             forAll (blockMeshPtr_->patches()[patchI], faceI)
             {
-//                forAll (facePoints, pointI)
-//                {
-//                }
+                if(bndFaceNeiboor[patchI][faceI].size() == 3)
+                { // Face as 3 edges attached with this patch
+                    std::set<std::set<label> > faceEdge;
+                    const labelList ptLabel
+                    (
+                        blockMeshPtr_->patches()[patchI][faceI].pointsLabel()
+                    );
+                    forAll (ptLabel, ptI)
+                    {
+                        std::set<label> edge;
+                        edge.insert(ptLabel[ptI]);
+                        edge.insert(ptLabel[(ptI + 1) % 4]);
+                        faceEdge.insert(edge);
+                    }
+
+                    Info<< "Set from pointsLabels   ";
+                    for
+                    (
+                        std::set<std::set<label> >::iterator iter1 = faceEdge.begin();
+                        iter1 != faceEdge.end();
+                        ++iter1
+                    )
+                    {
+                        for
+                        (
+                            std::set<label>::iterator iter2 = iter1->begin();
+                            iter2 != iter1->end();
+                            ++iter2
+                        )
+                        {
+                            Info<< (*iter2) << " ";
+                        }
+                        Info<< " - ";
+                    }
+                    Info<< nl;
+
+                    Info<< "Set from bndFaceNeiboor ";
+                    for
+                    (
+                        std::set<std::set<label> >::iterator iter1 = bndFaceConnectEdges[patchI][faceI].begin();
+                        iter1 != bndFaceConnectEdges[patchI][faceI].end();
+                        ++iter1
+                    )
+                    {
+                        for
+                        (
+                            std::set<label>::iterator iter2 = iter1->begin();
+                            iter2 != iter1->end();
+                            ++iter2
+                        )
+                        {
+                            Info<< (*iter2) << " ";
+                        }
+                        Info<< " - ";
+                    }
+                    Info<< nl;
+
+                    std::set<std::set<label> > bndEdge;
+                    std::set_difference
+                    (
+                        faceEdge.begin(),
+                        faceEdge.end(),
+                        bndFaceNeiboor[patchI][faceI].begin(),
+                        bndFaceNeiboor[patchI][faceI].end(),
+                        std::inserter(bndEdge, bndEdge.begin())
+                    );
+
+                    Info<< label(bndEdge.size()) << " - " << label(faceEdge.size()) << endl;
+                    patchEdges[patchI].insert(bndEdge);
+                }
             }
+        }
+        forAll (blockMeshPtr_->patches(), patchI)
+        {
+            Info<< "Patch " << patchI;
+            label edg(0);
+            for
+            (
+                std::set<std::set<std::set<label> > >::iterator
+                    edgeI = patchEdges[patchI].begin();
+                edgeI != patchEdges[patchI].end();
+                ++edgeI
+            )
+            { // for each edge
+                Info<< " edge " << edg;
+                for
+                (
+                    std::set<std::set<label> >::iterator ptI = edgeI->begin();
+                    ptI != edgeI->end();
+                    ++ptI
+                )
+                {
+//                    Info<<;
+                }
+                ++edg;
+            }
+            Info<< endl;
         }
 
         forAll (blockMeshPtr_->patches(), patchI)

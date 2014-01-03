@@ -5,6 +5,7 @@
 #include "argList.H"
 
 #include <set>
+#include <map>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -47,6 +48,9 @@ class blockMeshSmoother
 
         // List of cell quality
         scalarList cellQuality_;
+
+        // Map of boundary points triangles
+        std::map<label, std::set<std::set<label> > > bndPtTri_;
 
         // Min mesh quality
         scalar minQuality_;

@@ -4,7 +4,6 @@
 #include "cellSmoother.h"
 
 #include <algorithm>
-#include <map>
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -65,7 +64,6 @@ Foam::blockMeshSmoother::blockMeshSmoother
     Info<< "Nb of patches: " << blockMeshPtr_->patches().size() << endl;
     if (fixBoundary_)
     {
-        std::map<label, std::set<std::set<label> > > pointFaces;
         forAll (blockMeshPtr_->patches(), patchI)
         {
             forAll (blockMeshPtr_->patches()[patchI], faceI)
@@ -87,9 +85,9 @@ Foam::blockMeshSmoother::blockMeshSmoother
                     triangle2.insert(facePoints[(pointI + 3) % 4]);
 
                     std::map<label, std::set<std::set<label> > >::iterator
-                         iter = pointFaces.find(facePoints[pointI]);
+                         iter = bndPtTri_.find(facePoints[pointI]);
 
-                    if (iter != pointFaces.end())
+                    if (iter != bndPtTri_.end())
                     {
                         iter->second.insert(triangle1);
                         iter->second.insert(triangle2);
@@ -99,23 +97,12 @@ Foam::blockMeshSmoother::blockMeshSmoother
                         std::set<std::set<label> > triangleList;
                         triangleList.insert(triangle1);
                         triangleList.insert(triangle2);
-                        pointFaces[facePoints[pointI]] = triangleList;
+                        bndPtTri_[facePoints[pointI]] = triangleList;
                     }
                 }
             }
         }
-        for
-        (
-            std::map<label, std::set<std::set<label> > >::iterator
-                iter = pointFaces.begin();
-            iter != pointFaces.end();
-            ++iter
-        )
-        {
-            const label pt(iter->first);
-            const label nbTri(iter->second.size());
-            Info<< "Point " << pt << " as " << nbTri << " triangles\n";
-        }
+
         std::set_difference
         (
             allPoints.begin(),

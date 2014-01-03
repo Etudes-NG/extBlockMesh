@@ -69,16 +69,6 @@ Foam::pointField Foam::cellSmoother::geometricTranform
     vc3[0] = 4;	vc3[1] = 1;	vc3[2] = 2;	vc3[3] = 3;
     vc3[4] = 1;	vc3[5] = 2;	vc3[6] = 3;	vc3[7] = 4;
 
-    // Labels for edge lengh
-    labelList vd1(12),  vd2(12);
-    vd1[0] = 0;	vd1[1] = 1;	vd1[2] = 2;	vd1[3] = 3;
-    vd1[4] = 0;	vd1[5] = 1;	vd1[6] = 2;	vd1[7] = 3;
-    vd1[8] = 4;	vd1[9] = 5;	vd1[10]= 6; vd1[11]= 7;
-
-    vd2[0] = 1;	vd2[1] = 2;	vd2[2] = 3;	vd2[3] = 0;
-    vd2[4] = 4;	vd2[5] = 5;	vd2[6] = 6;	vd2[7] = 7;
-    vd2[8] = 5;	vd2[9] = 6;	vd2[10]= 7;	vd2[11]= 4;
-
     // Compute dual octahedron
     pointField oct(6);
     forAll (vb1, octPtI)
@@ -122,16 +112,26 @@ Foam::pointField Foam::cellSmoother::geometricTranform
     }
     c /= 8;
 
+    // Labels for edge lengh
+    labelList vd1(12),  vd2(12);
+    vd1[0] = 0;	vd1[1] = 1;	vd1[2] = 2;	vd1[3] = 3;
+    vd1[4] = 0;	vd1[5] = 1;	vd1[6] = 2;	vd1[7] = 3;
+    vd1[8] = 4;	vd1[9] = 5;	vd1[10]= 6; vd1[11]= 7;
+
+    vd2[0] = 1;	vd2[1] = 2;	vd2[2] = 3;	vd2[3] = 0;
+    vd2[4] = 4;	vd2[5] = 5;	vd2[6] = 6;	vd2[7] = 7;
+    vd2[8] = 5;	vd2[9] = 6;	vd2[10]= 7;	vd2[11]= 4;
+
     // Scaling factor (keeping avg edge lenght)
-    point mh1(0, 0, 0), mh2(0, 0, 0);
+    scalar mh1(0.0), mh2(0.0);
     forAll (vd1, edgeI)
     {
-        mh1 += points_[vd1[edgeI]] - points_[vd2[edgeI]];
-        mh2 += Hp[vd1[edgeI]] - Hp[vd2[edgeI]];
+        mh1 += mag(points_[vd1[edgeI]] - points_[vd2[edgeI]]);
+        mh2 += mag(Hp[vd1[edgeI]] - Hp[vd2[edgeI]]);
     }
     mh1 /= 12;
     mh2 /= 12;
-    const scalar scalingfact(mag(mh1)/mag(mh2));
+    const scalar scalingfact(mh1/mh2);
 
     pointField C(8, c);
 

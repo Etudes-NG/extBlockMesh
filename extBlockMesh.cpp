@@ -268,6 +268,16 @@ int main(int argc, char *argv[])
         "blockTopology",
         "write block edges and centres as .obj files"
     );
+    argList::addBoolOption
+    (
+        "writeStep",
+        "write mesh at different smoothing step"
+    );
+    argList::addBoolOption
+    (
+        "fixBoundary",
+        "fix boundary nodes"
+    );
     argList::addOption
     (
         "dict",
@@ -347,8 +357,8 @@ int main(int argc, char *argv[])
     if (meshDict.found("smoother"))
     {
         dictionary smoothDict(meshDict.subDict("smoother"));
-        blockMeshSmoother smoother(blocks, smoothDict);
-        smoother.smoothing();
+        blockMeshSmoother smoother(blocks, smoothDict, args);
+        smoother.smoothing(args);
     }
 
     if (args.optionFound("blockTopology"))
@@ -393,7 +403,7 @@ int main(int argc, char *argv[])
     }
 
 
-//    Info<< nl << "Creating polyMesh from blockMesh" << endl;
+    Info<< nl << "Creating polyMesh from blockMesh" << endl;
 
     word defaultFacesName = "defaultFaces";
     word defaultFacesType = emptyPolyPatch::typeName;
@@ -426,7 +436,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-//        Info<< nl << "There are no merge patch pairs edges" << endl;
+        Info<< nl << "There are no merge patch pairs edges" << endl;
     }
 
 
@@ -490,7 +500,7 @@ int main(int argc, char *argv[])
 
         List<cellZone*> cz(zoneMap.size());
 
-//        Info<< nl << "Writing cell zones as cellSets" << endl;
+        Info<< nl << "Writing cell zones as cellSets" << endl;
 
         forAllConstIter(HashTable<label>, zoneMap, iter)
         {
@@ -518,7 +528,7 @@ int main(int argc, char *argv[])
     // Set the precision of the points data to 10
     IOstream::defaultPrecision(max(10u, IOstream::defaultPrecision()));
 
-//    Info<< nl << "Writing polyMesh" << endl;
+    Info<< nl << "Writing polyMesh" << endl;
     mesh.removeFiles();
     if (!mesh.write())
     {
@@ -534,28 +544,28 @@ int main(int argc, char *argv[])
     {
         const polyPatchList& patches = mesh.boundaryMesh();
 
-//        Info<< "----------------" << nl
-//            << "Mesh Information" << nl
-//            << "----------------" << nl
-//            << "  " << "boundingBox: " << boundBox(mesh.points()) << nl
-//            << "  " << "nPoints: " << mesh.nPoints() << nl
-//            << "  " << "nCells: " << mesh.nCells() << nl
-//            << "  " << "nFaces: " << mesh.nFaces() << nl
-//            << "  " << "nInternalFaces: " << mesh.nInternalFaces() << nl;
+        Info<< "----------------" << nl
+            << "Mesh Information" << nl
+            << "----------------" << nl
+            << "  " << "boundingBox: " << boundBox(mesh.points()) << nl
+            << "  " << "nPoints: " << mesh.nPoints() << nl
+            << "  " << "nCells: " << mesh.nCells() << nl
+            << "  " << "nFaces: " << mesh.nFaces() << nl
+            << "  " << "nInternalFaces: " << mesh.nInternalFaces() << nl;
 
-//        Info<< "----------------" << nl
-//            << "Patches" << nl
-//            << "----------------" << nl;
+        Info<< "----------------" << nl
+            << "Patches" << nl
+            << "----------------" << nl;
 
         forAll(patches, patchI)
         {
             const polyPatch& p = patches[patchI];
 
-//            Info<< "  " << "patch " << patchI
-//                << " (start: " << p.start()
-//                << " size: " << p.size()
-//                << ") name: " << p.name()
-//                << nl;
+            Info<< "  " << "patch " << patchI
+                << " (start: " << p.start()
+                << " size: " << p.size()
+                << ") name: " << p.name()
+                << nl;
         }
     }
 

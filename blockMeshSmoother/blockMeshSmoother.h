@@ -2,6 +2,7 @@
 #define BLOCKMESHSMOOTHER_H
 
 #include "blockMesh.H"
+#include "argList.H"
 
 #include <set>
 
@@ -47,10 +48,22 @@ class blockMeshSmoother
         // List of cell quality
         scalarList cellQuality_;
 
+        // Min mesh quality
+        scalar minQuality_;
+
+        // Mean mesh quality
+        scalar meanQuality_;
+
+        // Write intermediate meshs
+        bool writeIntermediateMesh_;
+
+        // Boundary behavior
+        bool fixBoundary_;
+
     // Private member functions
 
-        //- Mean ratio
-        void meshMeanRatio(scalar &min, scalar &avg);
+        // Mean ratio
+        void meshMeanRatio();
 
         // AddTransformedElementNodesAndWeights
         pointField addTransformedElementNodesAndWeights
@@ -82,7 +95,9 @@ class blockMeshSmoother
         (
             pointField &pi,
             std::set<label> &tn,
-            const scalarList &rT
+            const scalarList &rT,
+            labelList &relaxedCells,
+            const label cycle
         );
 
 public:
@@ -93,13 +108,18 @@ public:
 
     // Constructors
 
-        //- Construct from blockMesh and dictionary
-        blockMeshSmoother(blockMesh &block, dictionary &smootherDict);
+        //- Construct from blockMesh, dictionary and args
+        blockMeshSmoother
+        (
+            blockMesh &block,
+            dictionary &smootherDict,
+            const argList &args
+        );
 
     // Member functions
 
         //- Start smoothing
-        void smoothing();
+        void smoothing(const argList &args);
 
 };
 

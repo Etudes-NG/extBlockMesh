@@ -23,6 +23,10 @@ Foam::blockMeshSmoother::blockMeshSmoother
     cellNeighbors_(List<std::set<label> >(blockMeshPtr_->cells().size())),
     sumCellQuality_(scalarList(blockMeshPtr_->points().size())),
     cellQuality_(scalarList(blockMeshPtr_->cells().size())),
+    pointTopo_
+    (
+        List<std::set<std::set<label> > >(blockMeshPtr_->points().size())
+    ),
     writeIntermediateMesh_(args.optionFound("writeStep")),
     fixBoundary_(args.optionFound("fixBoundary"))
 {
@@ -161,14 +165,22 @@ Foam::blockMeshSmoother::blockMeshSmoother
 
                     if (commonPts.size() == 2)
                     { // Faces share an edge
-                        bndFaceNeiboor[patchI][faceI].insert(bndFacesName[patchI][faceJ]);
+                        bndFaceNeiboor[patchI][faceI].insert
+                        (
+                            bndFacesName[patchI][faceJ]
+                        );
                         bndFaceConnectEdges[patchI][faceI].insert(commonPts);
+
+                        // TODO add computation of angle for feature edges
                     }
                 }
             }
         }
 
-        List<std::set<std::set<std::set<label> > > > patchEdges
+        // Find boundary edges of patchs
+
+        // patch    edge   edgeDef   pt
+        List     <std::set<std::set<label> > > patchEdges
         (
             blockMeshPtr_->patches().size()
         );
@@ -177,8 +189,9 @@ Foam::blockMeshSmoother::blockMeshSmoother
         {
             forAll (blockMeshPtr_->patches()[patchI], faceI)
             {
-                if(bndFaceNeiboor[patchI][faceI].size() == 3)
+                if(bndFaceNeiboor[patchI][faceI].size() < 4)
                 { // Face as 3 edges attached with this patch
+                    // face   edge     pt (size = 4)
                     std::set<std::set<label> > faceEdge;
                     const labelList ptLabel
                     (
@@ -192,8 +205,7 @@ Foam::blockMeshSmoother::blockMeshSmoother
                         faceEdge.insert(edge);
                     }
 
-
-
+                    // nb     edgeDef  pt
                     std::set<std::set<label> > bndEdge;
                     std::set_difference
                     (
@@ -204,98 +216,137 @@ Foam::blockMeshSmoother::blockMeshSmoother
                         std::inserter(bndEdge, bndEdge.begin())
                     );
 
-                    Info<< "Set from faceEdge ";
                     for
                     (
-                        std::set<std::set<label> >::iterator iter1 = faceEdge.begin();
-                        iter1 != faceEdge.end();
-                        ++iter1
+                        std::set<std::set<label> >::iterator
+                            iter = bndEdge.begin();
+                        iter != bndEdge.end();
+                        ++iter
                     )
                     {
-                        for
-                        (
-                            std::set<label>::iterator iter2 = iter1->begin();
-                            iter2 != iter1->end();
-                            ++iter2
-                        )
-                        {
-                            Info<< (*iter2) << " ";
-                        }
-                        Info<< " - ";
+                        patchEdges[patchI].insert(*iter);
                     }
-                    Info<< nl;
-                    Info<< "Set from bndFaceNeiboor ";
-                    for
-                    (
-                        std::set<std::set<label> >::iterator iter1 = bndFaceConnectEdges[patchI][faceI].begin();
-                        iter1 != bndFaceConnectEdges[patchI][faceI].end();
-                        ++iter1
-                    )
-                    {
-                        for
-                        (
-                            std::set<label>::iterator iter2 = iter1->begin();
-                            iter2 != iter1->end();
-                            ++iter2
-                        )
-                        {
-                            Info<< (*iter2) << " ";
-                        }
-                        Info<< " - ";
-                    }
-                    Info<< nl;
-                    Info<< "Set from bndEdge ";
-                    for
-                    (
-                        std::set<std::set<label> >::iterator iter1 = bndEdge.begin();
-                        iter1 != bndEdge.end();
-                        ++iter1
-                    )
-                    {
-                        for
-                        (
-                            std::set<label>::iterator iter2 = iter1->begin();
-                            iter2 != iter1->end();
-                            ++iter2
-                        )
-                        {
-                            Info<< (*iter2) << " ";
-                        }
-                        Info<< " - ";
-                    }
-                    Info<< nl;
-
-                    Info<< label(bndEdge.size()) << " - " << label(faceEdge.size()) << endl;
-                    patchEdges[patchI].insert(bndEdge);
                 }
             }
         }
+
+        // Order edges forming a curve (list of points)
+        labelListList featureEdgeDef;
+        std::set<label> edgePoint;
         forAll (blockMeshPtr_->patches(), patchI)
         {
-            Info<< "Patch " << patchI;
-            label edg(0);
-            for
-            (
-                std::set<std::set<std::set<label> > >::iterator
-                    edgeI = patchEdges[patchI].begin();
-                edgeI != patchEdges[patchI].end();
-                ++edgeI
-            )
-            { // for each edge
-                Info<< " edge " << edg;
+
+            Info<< "Patch " << patchI << " as "
+                << label(patchEdges[patchI].size()) << " boundary edges" << nl;
+
+            while (patchEdges[patchI].size() != 0)
+            { // While there is cell edges
+
+                // create a new feature edge
+                featureEdgeDef.append(labelList());
+
+                // Add point 1 of edge 1 in feature edge def
+                //                          patch    edge     pt0
+                const label pt0(*patchEdges[patchI].begin()->begin());
+                featureEdgeDef[featureEdgeDef.size() - 1].append(pt0);
+                const label pt1(*patchEdges[patchI].begin()->rbegin());
+                featureEdgeDef[featureEdgeDef.size() - 1].append(pt1);
+                edgePoint.insert(pt0);
+                edgePoint.insert(pt1);
+
+                // erase edgeDef 1 from patch edges
+                patchEdges[patchI].erase(patchEdges[patchI].begin());
+
                 for
                 (
-                    std::set<std::set<label> >::iterator ptI = edgeI->begin();
-                    ptI != edgeI->end();
-                    ++ptI
+                    std::set<std::set<label> >::iterator
+                        edgeI = patchEdges[patchI].begin();
+                    edgeI != patchEdges[patchI].end();
+                    ++edgeI
                 )
-                {
-//                    Info<<;
+                { // for each edge in patch
+
+                    for
+                    (
+                        std::set<std::set<label> >::iterator
+                            edgeJ = patchEdges[patchI].begin();
+                        edgeJ != patchEdges[patchI].end();
+                        ++edgeJ
+                    )
+                    {
+                        for
+                        (
+                            std::set<std::set<label> >::iterator
+                                edgeK = patchEdges[patchI].begin();
+                            edgeK != patchEdges[patchI].end();
+                            ++edgeK
+                        )
+                        {
+                            if
+                            (
+                                *edgeK->begin() ==
+                                *featureEdgeDef[featureEdgeDef.size() - 1].rbegin()
+                            )
+                            {
+                                const label ptn(*edgeK->rbegin());
+                                featureEdgeDef[featureEdgeDef.size() - 1].append
+                                (
+                                    ptn
+                                );
+                                edgePoint.insert(ptn);
+
+                                patchEdges[patchI].erase(edgeK);
+                            }
+                            else if
+                            (
+                                *edgeK->rbegin() ==
+                                *featureEdgeDef[featureEdgeDef.size() - 1].rbegin()
+                            )
+                            {
+                                const label ptn(*edgeK->begin());
+                                featureEdgeDef[featureEdgeDef.size() - 1].append
+                                (
+                                    ptn
+                                );
+                                edgePoint.insert(ptn);
+
+                                patchEdges[patchI].erase(edgeK);
+                            }
+                        }
+                    }
                 }
-                ++edg;
             }
-            Info<< endl;
         }
+        Info<< "Find " << label(edgePoint.size()) << " points in edges" << nl;
+        Info<< "Find " << featureEdgeDef.size()
+            << " diferents features edges" << nl;
+        Info<< nl;
+
+        // Store pt linked to point
+        List<std::set<std::set<label> > > ptTopo(blockMeshPtr_->points().size());
+
+        std::set<label> featurePts;
+        forAll (featureEdgeDef, curveI)
+        {
+            forAll (featureEdgeDef[curveI], ptI)
+            {
+                featurePts.insert(featureEdgeDef[curveI][ptI]);
+                if (ptI + 1 < featureEdgeDef[curveI].size())
+                {
+                    std::set<label> pt;
+                    pt.insert(featureEdgeDef[curveI][ptI + 1]);
+                    pointTopo_[featureEdgeDef[curveI][ptI]].insert(pt);
+                }
+                else
+                { // TODO add link to first point is exist
+
+                }
+            }
+        }
+        // if the set size is egal to:
+        // 1 or 3 -> fixed point
+        // 2 -> point is on curve
+        // 0 -> point is on boundary or interior
 
         forAll (blockMeshPtr_->patches(), patchI)
         {
@@ -309,31 +360,75 @@ Foam::blockMeshSmoother::blockMeshSmoother
                 {
                     fixedPoints.insert(facePoints[pointI]);
 
-                    std::set<label> triangle1;
-                    triangle1.insert(facePoints[(pointI + 1) % 4]);
-                    triangle1.insert(facePoints[(pointI + 2) % 4]);
+                    if (featurePts.find(facePoints[pointI]) ==featurePts.end())
+                    { // Point is not a feature point
 
-                    std::set<label> triangle2;
-                    triangle2.insert(facePoints[(pointI + 2) % 4]);
-                    triangle2.insert(facePoints[(pointI + 3) % 4]);
+                        std::set<label> triangle1;
+                        triangle1.insert(facePoints[(pointI + 1) % 4]);
+                        triangle1.insert(facePoints[(pointI + 2) % 4]);
 
-                    std::map<label, std::set<std::set<label> > >::iterator
-                         iter = bndPtTri_.find(facePoints[pointI]);
+                        std::set<label> triangle2;
+                        triangle2.insert(facePoints[(pointI + 2) % 4]);
+                        triangle2.insert(facePoints[(pointI + 3) % 4]);
 
-                    if (iter != bndPtTri_.end())
-                    {
-                        iter->second.insert(triangle1);
-                        iter->second.insert(triangle2);
+                        pointTopo_[facePoints[pointI]].insert(triangle1);
+                        pointTopo_[facePoints[pointI]].insert(triangle2);
+
+//                        std::map<label, std::set<std::set<label> > >::iterator
+//                             iter = bndPtTri_.find(facePoints[pointI]);
+
+//                        if (iter != bndPtTri_.end())
+//                        {
+//                            iter->second.insert(triangle1);
+//                            iter->second.insert(triangle2);
+//                        }
+//                        else
+//                        {
+//                            std::set<std::set<label> > triangleList;
+//                            triangleList.insert(triangle1);
+//                            triangleList.insert(triangle2);
+//                            bndPtTri_[facePoints[pointI]] = triangleList;
+//                        }
                     }
-                    else
-                    {
-                        std::set<std::set<label> > triangleList;
-                        triangleList.insert(triangle1);
-                        triangleList.insert(triangle2);
-                        bndPtTri_[facePoints[pointI]] = triangleList;
-                    }
+
+
                 }
             }
+        }
+
+        {
+            label nb0(0), nb1(0), nb2(0), nb3(0), nb4(0), nbp(0);
+
+            forAll (pointTopo_, ptI)
+            {
+                switch (pointTopo_[ptI].size())
+                {
+                case 0:
+                    ++nb0;
+                    break;
+                case 1:
+                    ++nb1;
+                    break;
+                case 2:
+                    ++nb2;
+                    break;
+                case 3:
+                    ++nb3;
+                    break;
+                case 4:
+                    ++nb4;
+                    break;
+                default:
+                    ++nbp;
+                    break;
+                }
+            }
+            Info<< "nb0: " << nb0
+                << ", nb1: " << nb1
+                << ", nb2: " << nb2
+                << ", nb3: " << nb3
+                << ", nb4: " << nb4
+                << ", nbn: " << nbp << nl;
         }
 
         std::set_difference

@@ -31,7 +31,6 @@ class blockMeshSmoother
         labelListList pointCells_;
 
         // list of points for each cell
-        // FIXME change with direct function "pointsLabels"
         labelListList cellPoints_;
 
         // cell linked to points
@@ -50,7 +49,7 @@ class blockMeshSmoother
         scalarList cellQuality_;
 
         // Map of boundary points triangles
-        std::map<label, std::set<std::set<label> > > bndPtTri_;
+        List<std::set<std::set<label> > > pointTopo_;
 
         // Min mesh quality
         scalar minQuality_;
@@ -63,6 +62,8 @@ class blockMeshSmoother
 
         // Boundary behavior
         bool fixBoundary_;
+
+
 
     // Private member functions
 

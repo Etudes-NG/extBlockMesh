@@ -86,11 +86,6 @@ int main(int argc, char *argv[])
         "writeStep",
         "write mesh at different smoothing step"
     );
-    argList::addBoolOption
-    (
-        "fixBoundary",
-        "fix boundary nodes"
-    );
     argList::addOption
     (
         "dict",

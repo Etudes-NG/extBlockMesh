@@ -3,3 +3,13 @@ blockMeshSmoother/blockMeshSmoother.h
 blockMeshSmoother/blockMeshSmoother.cpp
 blockMeshSmoother/cellSmoother.h
 blockMeshSmoother/cellSmoother.cpp
+blockMeshSmoother/blockMeshTopology.h
+blockMeshSmoother/blockMeshTopology.cpp
+blockMeshSmoother/pointTopo.h
+blockMeshSmoother/pointTopo.cpp
+blockMeshSmoother/interiorPoint.h
+blockMeshSmoother/interiorPoint.cpp
+blockMeshSmoother/boundaryPoint.h
+blockMeshSmoother/boundaryPoint.cpp
+blockMeshSmoother/featureEdgePoint.h
+blockMeshSmoother/featureEdgePoint.cpp

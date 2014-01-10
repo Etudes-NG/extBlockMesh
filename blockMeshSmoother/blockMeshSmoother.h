@@ -1,11 +1,11 @@
 #ifndef BLOCKMESHSMOOTHER_H
 #define BLOCKMESHSMOOTHER_H
 
-#include "blockMesh.H"
 #include "argList.H"
 
+#include "blockMeshTopology.h"
+
 #include <set>
-#include <map>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,8 +48,8 @@ class blockMeshSmoother
         // List of cell quality
         scalarList cellQuality_;
 
-        // Map of boundary points triangles
-        List<std::set<std::set<label> > > pointTopo_;
+        // Topology of points
+        blockMeshTopology pointTopology_;
 
         // Min mesh quality
         scalar minQuality_;
@@ -59,9 +59,6 @@ class blockMeshSmoother
 
         // Write intermediate meshs
         bool writeIntermediateMesh_;
-
-        // Boundary behavior
-        bool fixBoundary_;
 
 
 
@@ -79,8 +76,6 @@ class blockMeshSmoother
             const scalar &eTP
         );
 
-        std::set<label> getTransformedAndFreePoints(std::set<label> &tp);
-
         void addUntransformedElementNodesAndWeights
         (
             pointField &pi,
@@ -90,11 +85,8 @@ class blockMeshSmoother
         );
 
         void computeNewNodes
-        (
-            pointField &pi,
-            scalarList &wj,
-            std::set<label> &tn
-        );
+        (pointField &pi,
+            scalarList &wj);
 
         pointField iterativeNodeRelaxation
         (
@@ -103,6 +95,9 @@ class blockMeshSmoother
             const scalarList &rT,
             labelList &relaxedCells
         );
+
+        //- as copy (not implemented)
+        blockMeshSmoother(const blockMeshSmoother&);
 
 public:
 
@@ -119,6 +114,9 @@ public:
             dictionary &smootherDict,
             const argList &args
         );
+
+    //- Destructor
+        ~blockMeshSmoother();
 
     // Member functions
 

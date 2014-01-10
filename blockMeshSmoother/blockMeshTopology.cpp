@@ -21,8 +21,11 @@ Foam::blockMeshTopology::blockMeshTopology
       ),
       minNbFeatureEdge_(readLabel(topoDict.lookup("minEdgeForFeature")))
 {
-    searchFeatureEdges(boundaryFaceEdge(blocks), blocks);
+    searchFeatureEdges(getBoundaryFacesPoints(blocks), blocks);
     initialiseBoundaryPoint(pointLinks(blocks), blocks);
+
+    Info<< "There is " << label(featureEdgeSet_.size()) << "feature edges" << nl;
+    Info<< "There is " << label(featurePts_.size()) << "feature points" << nl;
 }
 
 Foam::blockMeshTopology::~blockMeshTopology()
@@ -83,8 +86,6 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint
             }
         }
     }
-    Info<< "Nb boundary points = " << label(boundaryPts.size()) << endl;
-    Info<< "Nb features points = " << label(featurePts_.size()) << endl;
 
     forAll (blocks->points(), ptI)
     {
@@ -103,6 +104,8 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint
                 std::inserter(normalPoint, normalPoint.begin())
             );
 
+            Info<< "Normal point size: " << label(normalPoint.size()) << nl;
+
             pointTopo_[ptI] = new Foam::boundaryPoint
             (
                 pointTriangles[ptI],
@@ -117,73 +120,9 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint
 }
 
 
-Foam::labelListList Foam::blockMeshTopology::orderEdgesCurve
-(
-    std::set<std::set<label> > &featEdgSet
-)
-{
-    labelListList featEdge;
-    std::set<label> edgePoint;
-
-    while (!featEdgSet.empty())
-    { // While there is featureEdge not connected
-
-        // create a new feature edge
-        featEdge.append(labelList());
-
-        // Add point 1 of edge 1 in feature edge def
-        //                          patch    edge     pt0
-        const label pt0(*featEdgSet.begin()->begin());
-        featEdge[featEdge.size() - 1].append(pt0);
-        const label pt1(*featEdgSet.begin()->rbegin());
-        featEdge[featEdge.size() - 1].append(pt1);
-        edgePoint.insert(pt0);
-        edgePoint.insert(pt1);
-
-        // erase edgeDef 1 from patch edges
-        featEdgSet.erase(featEdgSet.begin());
-
-        for
-        (
-            std::set<std::set<label> >::iterator edgeI = featEdgSet.begin();
-            edgeI != featEdgSet.end();
-            ++edgeI
-        )
-        { // for each edge
-
-            for
-            (
-                std::set<std::set<label> >::iterator edgeK = featEdgSet.begin();
-                edgeK != featEdgSet.end();
-                ++edgeK
-            )
-            { // Test all edges
-                const label fn(featEdge.size() - 1);
-                if (*edgeK->begin() == *featEdge[fn].rbegin())
-                {
-                    const label ptn(*edgeK->rbegin());
-                    featEdge[featEdge.size() - 1].append(ptn);
-                    edgePoint.insert(ptn);
-                    featEdgSet.erase(edgeK);
-                }
-                else if (*edgeK->rbegin() == *featEdge[fn].rbegin())
-                {
-                    const label ptn(*edgeK->begin());
-                    featEdge[featEdge.size() - 1].append(ptn);
-                    edgePoint.insert(ptn);
-                    featEdgSet.erase(edgeK);
-                }
-            }
-        }
-    }
-
-    return featEdge;
-}
-
-
 void Foam::blockMeshTopology::searchFeatureEdges
 (
-    const List<List<std::set<label> > > &bndFacesName,
+    const List<List<std::set<label> > > &bndFacesPoints,
     const blockMesh *blocks
 )
 {
@@ -207,18 +146,18 @@ void Foam::blockMeshTopology::searchFeatureEdges
                 std::set<label> commonPts;
                 std::set_intersection
                 (
-                    bndFacesName[patchI][faceI].begin(),
-                    bndFacesName[patchI][faceI].end(),
-                    bndFacesName[patchI][faceJ].begin(),
-                    bndFacesName[patchI][faceJ].end(),
+                    bndFacesPoints[patchI][faceI].begin(),
+                    bndFacesPoints[patchI][faceI].end(),
+                    bndFacesPoints[patchI][faceJ].begin(),
+                    bndFacesPoints[patchI][faceJ].end(),
                     std::inserter(commonPts, commonPts.begin())
                 );
 
                 if (commonPts.size() == 2)
-                { // Faces share an edge
+                { // Faces are connected
                     bndFaceNeiboor[patchI][faceI].insert
                     (
-                        bndFacesName[patchI][faceJ]
+                        bndFacesPoints[patchI][faceJ]
                     );
                     bndFaceConnectEdges[patchI][faceI].insert(commonPts);
 
@@ -245,6 +184,8 @@ void Foam::blockMeshTopology::searchFeatureEdges
                         );
                         featurePts_.insert(*commonPts.begin());
                         featurePts_.insert(*commonPts.rbegin());
+
+                        featureEdgeSet_.insert(commonPts);
                     }
                 }
             }
@@ -318,18 +259,17 @@ void Foam::blockMeshTopology::searchFeatureEdges
 }
 
 Foam::List<Foam::List<std::set<Foam::label> > >
-Foam::blockMeshTopology::boundaryFaceEdge(const blockMesh *blocks)
+Foam::blockMeshTopology::getBoundaryFacesPoints(const blockMesh *blocks)
 {
     const label nbPatch(blocks->patches().size());
     //patch  face  points labels
-    List<List<std::set<label> > > bndFacesName(nbPatch);
+    List<List<std::set<label> > > bndFacesPoints(nbPatch);
 
     forAll (blocks->patches(), patchI)
     {
         const label nbFaces(blocks->patches()[patchI].size());
-        bndFacesName[patchI].resize(nbFaces);
+        bndFacesPoints[patchI].resize(nbFaces);
 
-        std::set<std::set<label> > facesPointsSet;
         forAll (blocks->patches()[patchI], faceI)
         {
             const labelList facePoints
@@ -340,21 +280,16 @@ Foam::blockMeshTopology::boundaryFaceEdge(const blockMesh *blocks)
             forAll (facePoints, pointI)
             {
                 facePts.insert(facePoints[pointI]);
-                bndPoints_.insert
-                (
-                    std::make_pair<label, point>
-                    (
-                        facePoints[pointI],
-                        blocks->points()[facePoints[pointI]]
-                    )
-                );
-            }
-            facesPointsSet.insert(facePts);
 
-            bndFacesName[patchI][faceI] = facePts;
+                // Store boundary point
+                bndPoints_[facePoints[pointI]] =
+                        blocks->points()[facePoints[pointI]];
+            }
+
+            bndFacesPoints[patchI][faceI] = facePts;
         }
     }
-    return bndFacesName;
+    return bndFacesPoints;
 }
 
 Foam::List<std::set<Foam::label> > Foam::blockMeshTopology::pointLinks

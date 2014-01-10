@@ -55,18 +55,15 @@ class blockMeshTopology
             const Foam::blockMesh *blocks
         );
 
-        //- Order edges forming a curve
-        labelListList orderEdgesCurve(std::set<std::set<label> > &featEdgSet);
-
         //- Get patch faces neiboor
         void searchFeatureEdges
         (
-            const List<List<std::set<label> > > &bndFacesName,
+            const List<List<std::set<label> > > &bndFacesPoints,
             const blockMesh *blocks
         );
 
         //- Search boundary faces edges
-        List<List<std::set<label> > > boundaryFaceEdge(const blockMesh *blocks);
+        List<List<std::set<label> > > getBoundaryFacesPoints(const blockMesh *blocks);
 
         //- Search point normal of boundary faces
         List<std::set<label> > pointLinks(const blockMesh *blocks);

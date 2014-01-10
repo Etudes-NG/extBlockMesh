@@ -36,22 +36,21 @@ class blockMeshTopology
         //- Features point connections
         std::map<label, std::set<label> > featurePointConnections_;
 
+        //- List of feature points
+        std::set<label> featurePts_;
+
+        //- set of feature edge
+        std::set<std::set<label> > featureEdgeSet_;
+
         //- TODO add storage of cell point conectivity (from blockMeshSmoother)
         //- TODO store face points label in list
 
 
     //- Private member functions
 
-        //- Initialisee the list for feature edge point
-        std::set<label> initiliseFeatureEdgePoint
-        (
-            const labelListList &featureEdgeDef
-        );
-
         //- Add boudary point triangles
         void initialiseBoundaryPoint
         (
-            const std::set<label> &featurePts,
             const List<std::set<label> > &pointsLink,
             const Foam::blockMesh *blocks
         );
@@ -59,28 +58,15 @@ class blockMeshTopology
         //- Order edges forming a curve
         labelListList orderEdgesCurve(std::set<std::set<label> > &featEdgSet);
 
-        //- Extract boundary of patchs
-        void extractPatchBoundary
-        (
-            const List<List<std::set<std::set<label> > > > &bndFaceNeiboor,
-            const List<List<std::set<std::set<label> > > > &bndFaceConnectEdges,
-            const blockMesh *blocks
-        );
-
         //- Get patch faces neiboor
-        List<List<std::set<std::set<label> > > > getPatchFacesNeiboor
+        void searchFeatureEdges
         (
-            List<List<std::set<std::set<label> > > > &bndFaceNeiboor,
             const List<List<std::set<label> > > &bndFacesName,
             const blockMesh *blocks
         );
 
         //- Search boundary faces edges
-        List<List<std::set<label> > > boundaryFacesEdges
-        (
-            List<std::set<std::set<label> > > &patchFacesPoints,
-            const blockMesh *blocks
-        );
+        List<List<std::set<label> > > boundaryFaceEdge(const blockMesh *blocks);
 
         //- Search point normal of boundary faces
         List<std::set<label> > pointLinks(const blockMesh *blocks);

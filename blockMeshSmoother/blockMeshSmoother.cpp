@@ -79,14 +79,11 @@ void Foam::blockMeshSmoother::meshMeanRatio()
     meanQuality_ = 0.0;
     forAll (blockMeshPtr_->cells(), cellI)
     {
-        cellQuality_[cellI] =
-        cellSmoother
+        const pointField H
         (
-            blockMeshPtr_->cells()[cellI].points
-            (
-             blockMeshPtr_->points()
-            )
-        ).meanRatio();
+            blockMeshPtr_->cells()[cellI].points(blockMeshPtr_->points())
+        );
+        cellQuality_[cellI] = cellSmoother(H).meanRatio();
 
         if (cellQuality_[cellI] < minQuality_)
         {
@@ -193,18 +190,25 @@ void Foam::blockMeshSmoother::addUntransformedElementNodesAndWeights
 void Foam::blockMeshSmoother::computeNewNodes
 (
     pointField &pi,
-    scalarList &wj
+    scalarList &wj,
+    std::set<label> &tn
 )
 {
-    forAll (blockMeshPtr_->points(), ptI)
+    for
+    (
+        std::set<label>::iterator ptI = tn.begin();
+        ptI != tn.end();
+        ++ptI
+    )
     {
-        if (wj[ptI] > VSMALL)
+        if (wj[*ptI] > VSMALL)
         {
-            pi[ptI] /= wj[ptI];
+            const point pt(pi[*ptI]/wj[*ptI]);
+            pi[*ptI] = pointTopology_.optimalPoint(*ptI, pt);
         }
         else
         {
-            pi[ptI] = blockMeshPtr_->points()[ptI];
+            pi[*ptI] = blockMeshPtr_->points()[*ptI];
         }
     }
 }
@@ -235,12 +239,7 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
         {
             const scalar r(rT[nR[*ptI]]);
 
-            pip[*ptI] = pointTopology_.optimalPoint
-            (
-                *ptI,
-                (1.0 - r)*blockMeshPtr_->points()[*ptI] + r*pi[*ptI],
-                blockMeshPtr_
-            );
+            pip[*ptI] = (1.0 - r)*blockMeshPtr_->points()[*ptI] + r*pi[*ptI];
         }
 
         // compute quality with modified mesh
@@ -253,6 +252,13 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
                 Ht[ptI] = pip[cellPoints_[cellI][ptI]];
             }
             cq[cellI] = cellSmoother(Ht).meanRatio();
+
+            // TODO remove
+//            if (cq[cellI] < 1e-6)
+//            {
+//                // stop
+//                Info<< "Cell " << cellI << endl;
+//            }
         }
 
         // Test new cells
@@ -267,18 +273,6 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
                 }
             }
         }
-
-        // Remove fixed points from point to move if any
-        std::set<label> tn2; // Transformed Nodes
-        std::set_intersection
-        (
-            tn.begin(),
-            tn.end(),
-            mobilPoints_.begin(),
-            mobilPoints_.end(),
-            std::inserter(tn2, tn2.begin())
-        );
-        tn = tn2;
 
         // Reduce the relaxation factor for each point to correct
         label reversedCells(0);
@@ -327,10 +321,7 @@ void Foam::blockMeshSmoother::smoothing(const argList &args)
 
     const label maxNoMinImproveCounter
     (
-        readLabel
-        (
-            dict_.lookup("maxIneffectiveIteration")
-        )
+        readLabel(dict_.lookup("maxIneffectiveIteration"))
     );
 
     bool converged(false);
@@ -396,7 +387,7 @@ void Foam::blockMeshSmoother::smoothing(const argList &args)
 
         addUntransformedElementNodesAndWeights(pi, wj, tp, targetQual);
 
-        computeNewNodes(pi, wj);
+        computeNewNodes(pi, wj, tp);
 
         labelList nbRelCel;
 

@@ -42,9 +42,6 @@ class blockMeshSmoother
         // Sum of cell quality for each pt
         scalarList sumCellQuality_;
 
-        // Set of mobiles points
-        std::set<label> mobilPoints_;
-
         // List of cell quality
         scalarList cellQuality_;
 
@@ -85,8 +82,11 @@ class blockMeshSmoother
         );
 
         void computeNewNodes
-        (pointField &pi,
-            scalarList &wj);
+        (
+            pointField &pi,
+            scalarList &wj,
+            std::set<label> &tn
+        );
 
         pointField iterativeNodeRelaxation
         (

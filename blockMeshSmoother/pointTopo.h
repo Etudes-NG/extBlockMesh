@@ -3,6 +3,9 @@
 
 #include "blockMesh.H"
 
+#include <map>
+#include <set>
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -23,7 +26,6 @@ class pointTopo
 
     //- Private member functions
 
-
 public:
     //- Constructors
 
@@ -31,7 +33,7 @@ public:
         pointTopo();
 
     //- Destructor
-        virtual ~pointTopo();
+        virtual ~pointTopo() = 0;
 
     //- Member functions
 
@@ -39,12 +41,23 @@ public:
         virtual point smoothedPoint
         (
             const point &guessedPoint,
-            const blockMesh *blocks,
-            const label &pointRef,
-            const blockMeshTopology *topo
-        ) const {return guessedPoint;}
+            const label &pointRef
+        )
+        {
+            Info<< "call wrong point topo\n";
+            return point();
+        }
 
-        virtual void addPoint(const label &addedPoint){}
+        virtual std::map<scalar,point> minDist
+        (
+            const point &guessedPoint,
+            const label &pointRef
+        ) const {return std::map<scalar,point>();}
+
+        //- Get linked point of feature edge point
+        virtual std::set<label> getPointLinked() const
+        {return std::set<label>();}
+
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

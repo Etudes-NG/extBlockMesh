@@ -21,20 +21,13 @@ class boundaryPoint : public pointTopo
         //- Point topology
         std::set<std::set<label> > triangles_;
 
-        //- Normal point
-        std::set<label> normalPoint_;
-
     //- Private member functions
 
 public:
     //- Constructors
 
         //- Construct from
-        boundaryPoint
-        (
-            const std::set<std::set<Foam::label> > &triangles,
-            const std::set<label> &normalPoint
-        );
+        boundaryPoint(const std::set<std::set<Foam::label> > &triangles);
 
     //- Destructor
         ~boundaryPoint();
@@ -45,10 +38,8 @@ public:
         point smoothedPoint
         (
             const Foam::point &guessedPoint,
-            const blockMesh *blocks,
-            const label &pointRef,
-            const blockMeshTopology *topo
-        ) const;
+            const label &pointRef
+        );
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

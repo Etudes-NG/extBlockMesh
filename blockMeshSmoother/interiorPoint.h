@@ -36,11 +36,12 @@ public:
         //- Start smoothing
         point smoothedPoint
         (
-            const Foam::point &guessedPoint,
-            const blockMesh *blocks,
-            const label &pointRef,
-            const blockMeshTopology *topo
-        ) const {return guessedPoint;}
+            const point &guessedPoint,
+            const label &pointRef
+        )
+        {
+            return guessedPoint;
+        }
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

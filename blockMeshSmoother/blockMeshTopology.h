@@ -49,11 +49,7 @@ class blockMeshTopology
     //- Private member functions
 
         //- Add boudary point triangles
-        void initialiseBoundaryPoint
-        (
-            const List<std::set<label> > &pointsLink,
-            const Foam::blockMesh *blocks
-        );
+        void initialiseBoundaryPoint(const Foam::blockMesh *blocks);
 
         //- Get patch faces neiboor
         void searchFeatureEdges
@@ -114,14 +110,18 @@ public:
         point optimalPoint
         (
             const label &pointRef,
-            const point &guessedPoint,
-            const blockMesh *blocks
+            const point &guessedPoint
         );
 
         //- Get boundary point data
         point getBoundaryPoint(const label &ref) const
         {
             return bndPoints_.at(ref);
+        }
+
+        pointTopo *getPointTopoPtr(const label &ref) const
+        {
+            return pointTopo_[ref];
         }
 };
 

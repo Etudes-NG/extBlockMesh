@@ -5,6 +5,7 @@
 
 #include <set>
 
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -18,18 +19,39 @@ class featureEdgePoint : public pointTopo
 {
     //- Private data
 
-        //- Point link 1
+        //- Point link at beginning
         std::set<label> pointLinked_;
 
+        //- Point link when moving
+        std::set<label> pointLinkedNew_;
+
+        //- Pointer of topology
+        blockMeshTopology *topo_;
 
     //- Private member functions
 
+        //- Get linked point of feature edge point
+        std::set<label> getPointLinked() const;
+
+        //- Get optimal point from guessed
+        point getPoint(const point &guessedPoint, const label &ref);
+
+        //- Change linked points and get optimal point
+        point changeLinkedsPoint
+        (
+            const label &newRef,
+            const point &guessedPoint
+        );
 
 public:
     //- Constructors
 
         //- Construct from
-        featureEdgePoint();
+        featureEdgePoint
+        (
+            const std::set<label> &pointLinked,
+            blockMeshTopology *topo
+        );
 
     //- Destructor
         ~featureEdgePoint();
@@ -39,13 +61,15 @@ public:
         //- Start smoothing
         point smoothedPoint
         (
-            const Foam::point &guessedPoint,
-            const blockMesh *blocks,
-            const label &pointRef,
-            const blockMeshTopology *topo
-        ) const;
+            const point &guessedPoint,
+            const label &pointRef
+        );
 
-        void addPoint(const label &pointRef);
+        std::map<scalar,point> minDist
+        (
+            const point &guessedPoint,
+            const label &pointRef
+        );
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

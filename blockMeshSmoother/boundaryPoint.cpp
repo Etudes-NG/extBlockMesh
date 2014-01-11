@@ -5,13 +5,9 @@
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::boundaryPoint::boundaryPoint
-(
-    const std::set<std::set<Foam::label> > &triangles,
-    const std::set<label> &normalPoint
-)
+(const std::set<std::set<Foam::label> > &triangles)
     :
-      triangles_(triangles),
-      normalPoint_(normalPoint)
+      triangles_(triangles)
 {
 }
 
@@ -27,10 +23,8 @@ Foam::boundaryPoint::~boundaryPoint()
 Foam::point Foam::boundaryPoint::smoothedPoint
 (
     const Foam::point &guessedPoint,
-    const blockMesh *blocks,
-    const label &pointRef,
-    const blockMeshTopology *topo
-) const
+    const label &pointRef
+)
 {
     // TODO: compute guessed point from normal and topo
     return guessedPoint;

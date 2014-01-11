@@ -22,7 +22,7 @@ Foam::blockMeshTopology::blockMeshTopology
       minNbFeatureEdge_(readLabel(topoDict.lookup("minEdgeForFeature")))
 {
     searchFeatureEdges(getBoundaryFacesPoints(blocks), blocks);
-    initialiseBoundaryPoint(pointLinks(blocks), blocks);
+    initialiseBoundaryPoint(blocks);
 
     Info<< "There is " << label(featureEdgeSet_.size()) << "feature edges" << nl;
     Info<< "There is " << label(featurePts_.size()) << "feature points" << nl;
@@ -38,11 +38,7 @@ Foam::blockMeshTopology::~blockMeshTopology()
 
 // * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
 
-void Foam::blockMeshTopology::initialiseBoundaryPoint
-(
-    const List<std::set<label> > &pointsLink,
-    const blockMesh *blocks
-)
+void Foam::blockMeshTopology::initialiseBoundaryPoint(const blockMesh *blocks)
 {
     List<std::set<std::set<label> > > pointTriangles(blocks->points().size());
     List<std::set<label> > linkedPointFace(blocks->points().size());
@@ -87,32 +83,23 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint
         }
     }
 
+    // Initialise list of pointer
     forAll (blocks->points(), ptI)
     {
         if (boundaryPts.find(ptI) != boundaryPts.end())
         { // Point is a boundaryPoint, initialise it
+            pointTopo_[ptI] = new boundaryPoint(pointTriangles[ptI]);
+        }
+        else if (featurePts_.find(ptI) != featurePts_.end())
+        { // Point is a feature point
 
-
-            // search the normal point
-            std::set<label> normalPoint;
-            std::set_difference
+            pointTopo_[ptI] = new featureEdgePoint
             (
-                pointsLink[ptI].begin(),
-                pointsLink[ptI].end(),
-                linkedPointFace[ptI].begin(),
-                linkedPointFace[ptI].end(),
-                std::inserter(normalPoint, normalPoint.begin())
-            );
-
-            Info<< "Normal point size: " << label(normalPoint.size()) << nl;
-
-            pointTopo_[ptI] = new Foam::boundaryPoint
-            (
-                pointTriangles[ptI],
-                normalPoint
+                featurePointConnections_[ptI],
+                this
             );
         }
-        else if (featurePts_.find(ptI) == featurePts_.end())
+        else
         { // Point is not a boundary point and not a feature point
             pointTopo_[ptI] = new interiorPoint();
         }
@@ -245,17 +232,6 @@ void Foam::blockMeshTopology::searchFeatureEdges
             }
         }
     }
-
-    // Initialise list of pointer for feature point
-    for
-    (
-        std::set<label>::iterator iter = featurePts_.begin();
-        iter != featurePts_.end();
-        ++iter
-    )
-    {
-        pointTopo_[*iter] = new featureEdgePoint();
-    }
 }
 
 Foam::List<Foam::List<std::set<Foam::label> > >
@@ -290,52 +266,6 @@ Foam::blockMeshTopology::getBoundaryFacesPoints(const blockMesh *blocks)
         }
     }
     return bndFacesPoints;
-}
-
-Foam::List<std::set<Foam::label> > Foam::blockMeshTopology::pointLinks
-(
-    const blockMesh *blocks
-)
-{
-    List<std::set<label> > pointsLinks(blocks->points().size());
-    forAll (blocks->cells(), cellI)
-    {
-        const labelList ptsLabels(blocks->cells()[cellI].pointsLabel());
-
-        pointsLinks[ptsLabels[0]].insert(ptsLabels[1]);
-        pointsLinks[ptsLabels[0]].insert(ptsLabels[3]);
-        pointsLinks[ptsLabels[0]].insert(ptsLabels[4]);
-
-        pointsLinks[ptsLabels[1]].insert(ptsLabels[0]);
-        pointsLinks[ptsLabels[1]].insert(ptsLabels[2]);
-        pointsLinks[ptsLabels[1]].insert(ptsLabels[5]);
-
-        pointsLinks[ptsLabels[2]].insert(ptsLabels[1]);
-        pointsLinks[ptsLabels[2]].insert(ptsLabels[6]);
-        pointsLinks[ptsLabels[2]].insert(ptsLabels[3]);
-
-        pointsLinks[ptsLabels[3]].insert(ptsLabels[2]);
-        pointsLinks[ptsLabels[3]].insert(ptsLabels[7]);
-        pointsLinks[ptsLabels[3]].insert(ptsLabels[0]);
-
-        pointsLinks[ptsLabels[4]].insert(ptsLabels[7]);
-        pointsLinks[ptsLabels[4]].insert(ptsLabels[5]);
-        pointsLinks[ptsLabels[4]].insert(ptsLabels[0]);
-
-        pointsLinks[ptsLabels[5]].insert(ptsLabels[4]);
-        pointsLinks[ptsLabels[5]].insert(ptsLabels[6]);
-        pointsLinks[ptsLabels[5]].insert(ptsLabels[1]);
-
-        pointsLinks[ptsLabels[6]].insert(ptsLabels[5]);
-        pointsLinks[ptsLabels[6]].insert(ptsLabels[7]);
-        pointsLinks[ptsLabels[6]].insert(ptsLabels[2]);
-
-        pointsLinks[ptsLabels[7]].insert(ptsLabels[6]);
-        pointsLinks[ptsLabels[7]].insert(ptsLabels[4]);
-        pointsLinks[ptsLabels[7]].insert(ptsLabels[3]);
-    }
-
-    return pointsLinks;
 }
 
 Foam::label Foam::blockMeshTopology::oppositePts
@@ -465,17 +395,10 @@ void Foam::blockMeshTopology::insertFeaturePointConnection
 Foam::point Foam::blockMeshTopology::optimalPoint
 (
     const label &pointRef,
-    const point &guessedPoint,
-    const blockMesh *blocks
+    const point &guessedPoint
 )
 {
-    return pointTopo_[pointRef]->smoothedPoint
-    (
-        guessedPoint,
-        blocks,
-        pointRef,
-        this
-    );
+    return pointTopo_[pointRef]->smoothedPoint(guessedPoint, pointRef);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

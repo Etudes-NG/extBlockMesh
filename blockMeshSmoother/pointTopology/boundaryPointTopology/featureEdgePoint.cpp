@@ -41,8 +41,8 @@ std::map<Foam::scalar, Foam::point> Foam::featureEdgePoint::minDist
         ++ptI
     )
     {
-        const point p1(topo_->getBoundaryPoint(*ptI));
-        const point p2(topo_->getBoundaryPoint(pointRef));
+        const point p1(topo_->getBndPt(*ptI));
+        const point p2(topo_->getBndPt(pointRef));
         const point p3(guessedPoint);
         const scalar u
         (
@@ -83,34 +83,22 @@ Foam::point Foam::featureEdgePoint::getPoint
 
     if (minDists.empty())
     {
-
         const scalar distCenter
         (
-            mag
-            (
-                guessedPoint - topo_->getBoundaryPoint(ref)
-            )
+            mag(guessedPoint - topo_->getBndPt(ref))
         );
         const scalar distExtrem1
         (
-            mag
-            (
-                guessedPoint -
-                topo_->getBoundaryPoint(*pointLinkedNew_.begin())
-            )
+            mag(guessedPoint - topo_->getBndPt(*pointLinkedNew_.begin()))
         );
         const scalar distExtrem2
         (
-            mag
-            (
-                guessedPoint -
-                topo_->getBoundaryPoint(*pointLinkedNew_.rbegin())
-            )
+            mag(guessedPoint - topo_->getBndPt(*pointLinkedNew_.rbegin()))
         );
 
         if (distCenter < distExtrem1 && distCenter < distExtrem2)
         { // Boundary is convex
-            return topo_->getBoundaryPoint(ref);
+            return topo_->getBndPt(ref);
         }
         else if (distExtrem1 < distExtrem2)
         { // Nearest boundary point is begin
@@ -144,7 +132,7 @@ Foam::point Foam::featureEdgePoint::changeLinkedsPoint
     else
     { // Point linked is extremity
         Info<< "Error feature edge point next invalid\n";
-        return topo_->getBoundaryPoint(newRef);
+        return topo_->getBndPt(newRef);
     }
 }
 
@@ -162,13 +150,13 @@ Foam::point Foam::featureEdgePoint::smoothedPoint
     }
     else if (pointLinked_.size() > 2 || pointLinked_.size() == 1)
     { // Corner point
-        return topo_->getBoundaryPoint(pointRef);
+        return topo_->getBndPt(pointRef);
         Info<< "Corner point\n";
     }
     else
     {
         Info<< "Error feature edge point\n";
-        return topo_->getBoundaryPoint(pointRef);
+        return topo_->getBndPt(pointRef);
     }
 }
 

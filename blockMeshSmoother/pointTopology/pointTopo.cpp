@@ -2,7 +2,14 @@
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::pointTopo::pointTopo()
+Foam::pointTopo::pointTopo
+(
+    const std::set<std::set<Foam::label> > &triangles,
+    blockMeshTopology *topo
+)
+    :
+      triangles_(triangles),
+      topo_(topo)
 {
 }
 

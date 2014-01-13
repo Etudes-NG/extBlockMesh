@@ -114,7 +114,7 @@ public:
         );
 
         //- Get boundary point data
-        point getBoundaryPoint(const label &ref) const
+        point getBndPt(const label &ref) const
         {
             return bndPoints_.at(ref);
         }

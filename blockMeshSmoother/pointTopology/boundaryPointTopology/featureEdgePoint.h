@@ -22,7 +22,7 @@ class featureEdgePoint : public pointTopo
         //- Point link at beginning
         std::set<label> pointLinked_;
 
-        //- Point link when moving
+        //- Point link during move
         std::set<label> pointLinkedNew_;
 
         //- Pointer of topology
@@ -58,13 +58,14 @@ public:
 
     //- Member functions
 
-        //- Start smoothing
+        //- Get optimal point with repect of point topo
         point smoothedPoint
         (
             const point &guessedPoint,
             const label &pointRef
         );
 
+        //- Get map of points sorted by minimal distance
         std::map<scalar,point> minDist
         (
             const point &guessedPoint,

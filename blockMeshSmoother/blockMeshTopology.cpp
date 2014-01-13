@@ -88,7 +88,24 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint(const blockMesh *blocks)
     {
         if (boundaryPts.find(ptI) != boundaryPts.end())
         { // Point is a boundaryPoint, initialise it
-            pointTopo_[ptI] = new boundaryPoint(pointTriangles[ptI]);
+
+
+//            for
+//            (
+//                std::set<std::set<label> >::iterator ii = pointTriangles[ptI].begin();
+//                ii != pointTriangles[ptI].end();
+//                ++ii
+//            )
+//            {
+//                Info<< label((*ii).size()) << " - ";
+//            }
+//            Info<< nl;
+
+            pointTopo_[ptI] = new boundaryPoint
+            (
+                pointTriangles[ptI],
+                this
+            );
         }
         else if (featurePts_.find(ptI) != featurePts_.end())
         { // Point is a feature point

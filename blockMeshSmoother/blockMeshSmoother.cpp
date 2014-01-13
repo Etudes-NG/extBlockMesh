@@ -203,8 +203,7 @@ void Foam::blockMeshSmoother::computeNewNodes
     {
         if (wj[*ptI] > VSMALL)
         {
-            const point pt(pi[*ptI]/wj[*ptI]);
-            pi[*ptI] = pointTopology_.optimalPoint(*ptI, pt);
+            pi[*ptI] /= wj[*ptI];
         }
         else
         {
@@ -239,7 +238,11 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
         {
             const scalar r(rT[nR[*ptI]]);
 
-            pip[*ptI] = (1.0 - r)*blockMeshPtr_->points()[*ptI] + r*pi[*ptI];
+            pip[*ptI] = pointTopology_.optimalPoint
+            (
+                *ptI,
+                (1.0 - r)*blockMeshPtr_->points()[*ptI] + r*pi[*ptI]
+            );
         }
 
         // compute quality with modified mesh
@@ -253,12 +256,6 @@ Foam::pointField Foam::blockMeshSmoother::iterativeNodeRelaxation
             }
             cq[cellI] = cellSmoother(Ht).meanRatio();
 
-            // TODO remove
-//            if (cq[cellI] < 1e-6)
-//            {
-//                // stop
-//                Info<< "Cell " << cellI << endl;
-//            }
         }
 
         // Test new cells

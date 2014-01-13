@@ -18,16 +18,37 @@ class boundaryPoint : public pointTopo
 {
     //- Private data
 
-        //- Point topology
-        std::set<std::set<label> > triangles_;
-
     //- Private member functions
+
+        //- Test triangle
+        bool isOnTriangle
+        (
+            const label &refP2,
+            const label &refP3,
+            const point &p,
+            point &out,
+            const label &ref
+       ) const;
+
+        //- Get triangles linked
+        std::set<std::set<label> > getTrianglesLinked() const;
+
+        //- Change linked points and get optimal point
+        point changeLinkedsPoint
+        (
+            const label &newRef,
+            const point &guessedPoint
+        );
 
 public:
     //- Constructors
 
         //- Construct from
-        boundaryPoint(const std::set<std::set<Foam::label> > &triangles);
+        boundaryPoint
+        (
+            const std::set<std::set<Foam::label> > &triangles,
+            blockMeshTopology *topo
+        );
 
     //- Destructor
         ~boundaryPoint();
@@ -40,6 +61,16 @@ public:
             const Foam::point &guessedPoint,
             const label &pointRef
         );
+
+        //- Get map of points sorted by minimal distance
+        std::map<scalar,point> minDist
+        (
+            const point &guessedPoint,
+            const label &pointRef
+        );
+
+        //- Get optimal boundary point from guessed
+        point projectedBndPoint(const point &guessedPoint, const label &ref);
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

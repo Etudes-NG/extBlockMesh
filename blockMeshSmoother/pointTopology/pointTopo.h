@@ -21,8 +21,11 @@ class pointTopo
 {
     //- Private data
 
-        //-
+        //- Triangles connected to this point
+        std::set<std::set<label> > triangles_;
 
+        //- Pointer of boundary points topology
+        blockMeshTopology *topo_;
 
     //- Private member functions
 
@@ -30,7 +33,11 @@ public:
     //- Constructors
 
         //- Construct from
-        pointTopo();
+        pointTopo
+        (
+            const std::set<std::set<Foam::label> > &triangles,
+            blockMeshTopology *topo
+        );
 
     //- Destructor
         virtual ~pointTopo() = 0;

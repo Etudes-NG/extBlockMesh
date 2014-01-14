@@ -10,6 +10,9 @@
 /mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x/src/parallel/decompose/decompositionMethods/lnInclude/
 /mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x/src/fvMotionSolver/lnInclude
 /mnt/DataDrive/sw/OpenFOAM/OpenFOAM-2.2.x/src/mesh/blockMesh/lnInclude/
+
 /mnt/hgfs/Data/Perso/Recherche/Programmation/extBlockMesh/code/blockMeshSmoother/
 /mnt/hgfs/Data/Perso/Recherche/Programmation/extBlockMesh/code/blockMeshSmoother/pointTopology/
+/mnt/hgfs/Data/Perso/Recherche/Programmation/extBlockMesh/code/blockMeshSmoother/pointTopology/boundaryPointTopology/
+
 /mnt/DataDrive/sw/install/include/c++/4.8.2

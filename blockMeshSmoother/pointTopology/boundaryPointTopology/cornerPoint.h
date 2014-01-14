@@ -1,10 +1,7 @@
-#ifndef FEATUREEDGEPOINT_H
-#define FEATUREEDGEPOINT_H
+#ifndef CORNERPOINT_H
+#define CORNERPOINT_H
 
 #include "boundaryPoint.h"
-
-#include <set>
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -12,57 +9,34 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-             Class pointTopo Declaration
+                        Class cornerPoint Declaration
 \*---------------------------------------------------------------------------*/
 
-class featureEdgePoint : public boundaryPoint
+
+class cornerPoint : public boundaryPoint
 {
-    //- Private data
-
-        //- Point link at beginning
-        std::set<label> pointLinked_;
-
-        //- Point link during move
-        std::set<label> pointLinkedNew_;
-
-    //- Private member functions
-
-        //- Get linked point of feature edge point
-        std::set<label> getPointLinked() const;
-
 public:
     //- Constructors
 
         //- Construct from
-        featureEdgePoint
+        cornerPoint
         (
-            const std::set<label> &pointLinked,
             const std::set<std::set<Foam::label> > &triangles,
             const point &initialPoint,
             blockMeshTopology *topo
         );
 
     //- Destructor
-        ~featureEdgePoint();
+        ~cornerPoint();
 
     //- Member functions
 
-        //- Get optimal point with repect of point topo
-        point smoothedPoint
+        //- get optimal point with repect of point topo
+        virtual point smoothedPoint
         (
             const point &guessedPoint,
             const label &pointRef
-        );
-
-        //- Get map of points sorted by minimal distance
-        std::map<scalar,point> mapNeiborFeaturePts
-        (
-            const point &guessedPoint,
-            const label &pointRef
-        );
-
-        //- Get optimal feature edge point from guessed
-        point getFeatureEdgePoint(const point &guessedPoint, const label &ref);
+        ) const;
 
         //- Change feature edge linked points and get optimal point
         point changeFeatureEdgeLinkedsPoint
@@ -78,7 +52,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif // FEATUREEDGEPOINT_H
+#endif // CORNERPOINT_H
 
 // ************************************************************************* //
 

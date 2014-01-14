@@ -21,11 +21,14 @@ class blockMeshTopology
 {
     // Private data
 
+        //- Type of points
+        enum pointType
+        {
+            internal, featureEdge, corner, boundary
+        };
+
         //- Point topology
         List<pointTopo*> pointTopo_;
-
-        //- initial point data
-        std::map<label,point> bndPoints_;
 
         //- angle target for feature edge
         scalar featureAngle_;
@@ -36,33 +39,34 @@ class blockMeshTopology
         //- Features point connections
         std::map<label, std::set<label> > featurePointConnections_;
 
-        //- List of feature points
-        std::set<label> featurePts_;
+        //- List of points with type
+        List<pointType> pointsType_;
 
-        //- set of feature edge
-        std::set<std::set<label> > featureEdgeSet_;
+        //- Pointer of blockMesh
+        blockMesh *blockMeshPtr_;
 
         //- TODO add storage of cell point conectivity (from blockMeshSmoother)
-        //- TODO store face points label in list
+
+        //- Face points label in list
+        labelListListList boundaryFacePoints_;
 
 
     //- Private member functions
 
         //- Add boudary point triangles
-        void initialiseBoundaryPoint(const Foam::blockMesh *blocks);
+        void initialiseBoundaryPoint();
 
         //- Get patch faces neiboor
         void searchFeatureEdges
         (
-            const List<List<std::set<label> > > &bndFacesPoints,
-            const blockMesh *blocks
+            const List<List<std::set<label> > > &bndFacesPoints
         );
 
         //- Search boundary faces edges
-        List<List<std::set<label> > > getBoundaryFacesPoints(const blockMesh *blocks);
+        List<List<std::set<label> > > getBoundaryFacesPoints();
 
         //- Search point normal of boundary faces
-        List<std::set<label> > pointLinks(const blockMesh *blocks);
+        List<std::set<label> > pointLinks();
 
         //- Get normal point of boundary faces
         label oppositePts
@@ -70,8 +74,7 @@ class blockMeshTopology
             const label &patch,
             const label &face,
             const label &contactPoints,
-            const label &opposite,
-            const blockMesh *blocks
+            const label &opposite
         ) const;
 
         scalar connectedFaceAngles
@@ -80,8 +83,7 @@ class blockMeshTopology
             const label &face1,
             const label &face2,
             const label &contactPoint1,
-            const label &contactPoint2,
-            const blockMesh *blocks
+            const label &contactPoint2
          ) const;
 
         scalar angleBetweenPlanes
@@ -94,11 +96,14 @@ class blockMeshTopology
 
         //- Insert feature point connection
         void insertFeaturePointConnection(const label &pt1, const label &pt2);
+
+        //- Store Face points label in list
+        void boundaryFacePointsLabels();
 public:
     //- Constructors
 
         //- Construct from
-        blockMeshTopology(const blockMesh *blocks, const dictionary &topoDict);
+        blockMeshTopology(blockMesh *blocks, const dictionary &topoDict);
 
     //- Destructor
         ~blockMeshTopology();
@@ -114,9 +119,9 @@ public:
         );
 
         //- Get boundary point data
-        point getBndPt(const label &ref) const
+        point getPointCoord(const label &ref) const
         {
-            return bndPoints_.at(ref);
+            return blockMeshPtr_->points()[ref];
         }
 
         pointTopo *getPointTopoPtr(const label &ref) const

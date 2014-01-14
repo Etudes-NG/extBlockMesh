@@ -7,10 +7,14 @@
 Foam::boundaryPoint::boundaryPoint
 (
     const std::set<std::set<Foam::label> > &triangles,
+    const point &initialPoint,
     blockMeshTopology *topo
 )
     :
-      pointTopo(triangles, topo)
+    pointTopo(topo),
+    triangles_(triangles),
+    trianglesNew_(triangles),
+    initialPoint_(initialPoint)
 {
 }
 
@@ -31,9 +35,9 @@ bool Foam::boundaryPoint::isOnTriangle
 {
     // http://math.stackexchange.com/questions/544946/determine-if-projection-of-3d-point-onto-plane-is-within-a-triangle/
 
-    const point p1(topo_->getBndPt(ref));
-    const point p2(topo_->getBndPt(refP2));
-    const point p3(topo_->getBndPt(refP3));
+    const point p1(topo_->getPointCoord(ref));
+    const point p2(topo_->getPointCoord(refP2));
+    const point p3(topo_->getPointCoord(refP3));
 
     const point u(p2 - p1);
     const point v(p3 - p1);
@@ -51,6 +55,8 @@ bool Foam::boundaryPoint::isOnTriangle
         beta >= 0 && beta <= 1
     )
     { // Point is on triangle
+
+        // Compute the projected point
         out = alpha*p1 + beta*p2 + lambda*p3;
         return true;
     }
@@ -71,11 +77,11 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
     const label &ref
 )
 {
-    std::map<scalar,point> minDists(minDist(guessedPoint, ref));
+    std::map<scalar,point> minDists(mapNeiborFeaturePts(guessedPoint, ref));
 
     if (minDists.empty())
     {
-        const scalar distCenter(mag(guessedPoint - topo_->getBndPt(ref)));
+        const scalar distCenter(mag(guessedPoint - topo_->getPointCoord(ref)));
 
         // Set of all extremity point
         std::set<label> extremPoint;
@@ -109,9 +115,9 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
         {
             dist.insert
             (
-                std::make_pair<scalar,point>
+                std::make_pair<scalar, label>
                 (
-                    mag(guessedPoint - topo_->getBndPt(*ptI)),
+                    mag(guessedPoint - topo_->getPointCoord(*ptI)),
                     *ptI
                 )
             );
@@ -119,11 +125,11 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
 
         if (distCenter < dist.begin()->first)
         { // convex
-            return topo_->getBndPt(ref);
+            return topo_->getPointCoord(ref);
         }
         else
         {
-            return changeLinkedsPoint(dist.begin()->second, guessedPoint);
+            return changeFeatureEdgeLinkedsPoint(dist.begin()->second, guessedPoint);
         }
     }
     else
@@ -132,13 +138,35 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
     }
 }
 
-Foam::point Foam::boundaryPoint::changeLinkedsPoint
+Foam::point Foam::boundaryPoint::changeFeatureEdgeLinkedsPoint
 (
     const Foam::label &newRef,
     const Foam::point &guessedPoint
 )
 {
-    return topo_->getPointTopoPtr(newRef)->getPoint(guessedPoint, newRef);
+    FatalErrorIn("changeFeatureEdgeLinkedsPoint(guessedPoint, ref)")
+        << "Accessed from a non feature edge point\n"
+        << nl
+        << exit(FatalError);
+
+    return point();
+}
+
+Foam::point Foam::boundaryPoint::changeBoundaryPointLinkedFaces
+(
+    const label &newRef,
+    const point &guessedPoint
+)
+{
+    // Update the faces linked
+    trianglesNew_ = topo_->getPointTopoPtr(newRef)->getTrianglesLinked();
+
+    return getBoundaryPoint(guessedPoint, newRef);
+}
+
+Foam::point Foam::boundaryPoint::getInitialPoint(const Foam::label &ref) const
+{
+    return topo_->getPointCoord(ref);
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -150,39 +178,24 @@ Foam::point Foam::boundaryPoint::smoothedPoint
     const label &pointRef
 )
 {
-    point pt;
-    for
-    (
-        std::set<std::set<label> >::iterator triI = trianglesNew_.begin();
-        triI != trianglesNew_.end();
-        ++triI
-    )
-    {
-        if
-        (
-             isOnTriangle
-             (
-                 *(*triI).begin(),
-                 *(*triI).rbegin(),
-                 guessedPoint,
-                 pt,
-                 pointRef
-             )
-         )
-        {
-            return pt;
-        }
-    }
-
-
-
-    Info<< "Error no new triangle found\n";
-
-    // TODO: compute guessed point from normal and topo
-    return guessedPoint;
+    return getBoundaryPoint(guessedPoint, pointRef);
 }
 
-std::map<scalar, Foam::point> Foam::boundaryPoint::minDist
+std::map<Foam::scalar, Foam::point> Foam::boundaryPoint::mapNeiborFeaturePts
+(
+    const point &guessedPoint,
+    const label &pointRef
+)
+{
+    FatalErrorIn("mapNeiborFeaturePts(guessedPoint, ref)")
+        << "Not a feature point\n"
+        << nl
+        << exit(FatalError);
+
+    return std::map<Foam::scalar, Foam::point>();
+}
+
+std::map<Foam::scalar, Foam::point> Foam::boundaryPoint::mapBoundaryFeaturePts
 (
     const point &guessedPoint,
     const label &pointRef
@@ -220,6 +233,91 @@ std::map<scalar, Foam::point> Foam::boundaryPoint::minDist
     return minDist;
 }
 
+
+Foam::point Foam::boundaryPoint::getFeatureEdgePoint
+(
+    const Foam::point &guessedPoint,
+    const Foam::label &ref
+)
+{
+    FatalErrorIn("getFeatureEdgePoint(guessedPoint, ref)")
+        << "Error no feature edge point\n"
+        << nl
+        << exit(FatalError);
+
+    return point();
+}
+
+Foam::point Foam::boundaryPoint::getBoundaryPoint
+(
+    const point &guessedPoint,
+    const label &ref
+)
+{
+    std::map<scalar,point> minDists(mapBoundaryFeaturePts(guessedPoint, ref));
+
+    if (minDists.empty())
+    { // No projection found
+        const scalar distCenter(mag(guessedPoint - topo_->getPointCoord(ref)));
+
+        // Set of all extremity point
+        std::set<label> extremPoint;
+        for // all triangle
+        (
+            std::set<std::set<label> >::iterator triI = trianglesNew_.begin();
+            triI != trianglesNew_.end();
+            ++triI
+        )
+        {
+            for // all point
+            (
+                std::set<label>::iterator ptI = triI->begin();
+                ptI != triI->end();
+                ++ptI
+            )
+            {
+                 extremPoint.insert(*ptI);
+            }
+        }
+
+        // Store the dist between guessed point and extremity point
+        std::map<scalar, label> dist;
+
+        for // all extremity point
+        (
+            std::set<label>::iterator ptI = extremPoint.begin();
+            ptI != extremPoint.end();
+            ++ptI
+        )
+        {
+            dist.insert
+            (
+                std::make_pair<scalar, label>
+                (
+                    mag(guessedPoint - topo_->getPointCoord(*ptI)),
+                    *ptI
+                )
+            );
+        }
+
+        if (distCenter < dist.begin()->first)
+        { // convex, return the closest point
+            return topo_->getPointCoord(ref);
+        }
+        else
+        { // concave update the conected faces with thoses arround closest point
+            return changeBoundaryPointLinkedFaces
+            (
+                dist.begin()->second,
+                guessedPoint
+            );
+        }
+    }
+    else
+    {
+        return minDists.begin()->second;
+    }
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

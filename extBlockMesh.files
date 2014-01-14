@@ -27,3 +27,5 @@ blockMeshSmoother/pointTopology/boundaryPointTopology/featureEdgePoint.h
 blockMeshSmoother/pointTopology/boundaryPointTopology/featureEdgePoint.cpp
 blockMeshSmoother/pointTopology/boundaryPointTopology/boundaryPoint.h
 blockMeshSmoother/pointTopology/boundaryPointTopology/boundaryPoint.cpp
+blockMeshSmoother/pointTopology/boundaryPointTopology/cornerPoint.h
+blockMeshSmoother/pointTopology/boundaryPointTopology/cornerPoint.cpp

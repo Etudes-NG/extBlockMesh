@@ -18,7 +18,22 @@ class boundaryPoint : public pointTopo
 {
     //- Private data
 
-    //- Private member functions
+protected:
+
+    //- Protected data
+
+        //- Triangles faces connected to this point at beginning
+        std::set<std::set<label> > triangles_;
+
+        //- Triangles faces connected to this point during smoothing
+        std::set<std::set<label> > trianglesNew_;
+
+        // TODO remove storage of initial point
+        //- Initial point
+        point initialPoint_;
+
+
+    //- Protected member functions
 
         //- Test triangle
         bool isOnTriangle
@@ -28,17 +43,24 @@ class boundaryPoint : public pointTopo
             const point &p,
             point &out,
             const label &ref
-       ) const;
+        ) const;
 
-        //- Get triangles linked
-        std::set<std::set<label> > getTrianglesLinked() const;
-
-        //- Change linked points and get optimal point
-        point changeLinkedsPoint
+        //- Change feature edge linked points and get optimal point
+        virtual point changeFeatureEdgeLinkedsPoint
         (
             const label &newRef,
             const point &guessedPoint
         );
+
+        //- Change boundary linked faces and get optimal point
+        point changeBoundaryPointLinkedFaces
+        (
+            const label &newRef,
+            const point &guessedPoint
+        );
+
+        //- Initial boundary point
+        point getInitialPoint(const label &ref) const;
 
 public:
     //- Constructors
@@ -47,6 +69,7 @@ public:
         boundaryPoint
         (
             const std::set<std::set<Foam::label> > &triangles,
+            const point &initialPoint,
             blockMeshTopology *topo
         );
 
@@ -62,8 +85,15 @@ public:
             const label &pointRef
         );
 
-        //- Get map of points sorted by minimal distance
-        std::map<scalar,point> minDist
+        //- Get map of neibor features edge points sorted by minimal distance
+        std::map<scalar,point> mapNeiborFeaturePts
+        (
+            const point &guessedPoint,
+            const label &pointRef
+        );
+
+        //- Get map of neibor boundary points sorted by minimal distance
+        std::map<scalar,point> mapBoundaryFeaturePts
         (
             const point &guessedPoint,
             const label &pointRef
@@ -71,6 +101,23 @@ public:
 
         //- Get optimal boundary point from guessed
         point projectedBndPoint(const point &guessedPoint, const label &ref);
+
+
+        //- Get optimal point from guessed
+        virtual point getFeatureEdgePoint
+        (
+            const point &guessedPoint,
+            const label &ref
+        );
+
+        virtual point getBoundaryPoint
+        (
+            const point &guessedPoint,
+            const label &ref
+        );
+
+        //- Get triangles linked
+        std::set<std::set<label> > getTrianglesLinked() const;
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -21,50 +21,52 @@ class pointTopo
 {
     //- Private data
 
-        //- Triangles connected to this point
-        std::set<std::set<label> > triangles_;
+    //- Private member functions
 
+protected:
         //- Pointer of boundary points topology
         blockMeshTopology *topo_;
 
-    //- Private member functions
+    //- Protected member functions
+
 
 public:
     //- Constructors
 
         //- Construct from
-        pointTopo
-        (
-            const std::set<std::set<Foam::label> > &triangles,
-            blockMeshTopology *topo
-        );
+        pointTopo(blockMeshTopology *topo);
 
     //- Destructor
         virtual ~pointTopo() = 0;
 
     //- Member functions
 
-        //- get optimal point with repect of point topo
+        //- Point smoothed with respect of topology constraints
         virtual point smoothedPoint
         (
             const point &guessedPoint,
             const label &pointRef
-        )
-        {
-            Info<< "call wrong point topo\n";
-            return point();
-        }
+        );
 
-        virtual std::map<scalar,point> minDist
+        virtual std::map<scalar,point> mapNeiborFeaturePts
         (
             const point &guessedPoint,
             const label &pointRef
-        ) const {return std::map<scalar,point>();}
+        ) const;
 
         //- Get linked point of feature edge point
-        virtual std::set<label> getPointLinked() const
-        {return std::set<label>();}
+        virtual std::set<label> getPointLinked() const;
 
+        //- Get linked triangles faces of feature edge point
+        virtual std::set<std::set<label> > getTrianglesLinked() const;
+
+
+        //- Get optimal point from guessed
+        virtual point getFeatureEdgePoint
+        (
+            const point &guessedPoint,
+            const label &ref
+        );
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

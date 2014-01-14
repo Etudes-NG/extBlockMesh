@@ -26,22 +26,19 @@ public:
     //- Constructors
 
         //- Construct from
-        interiorPoint();
+        interiorPoint(blockMeshTopology *topo);
 
     //- Destructor
         ~interiorPoint();
 
     //- Member functions
 
-        //- Start smoothing
+        //- Point smoothed with respect of topology constraints
         point smoothedPoint
         (
             const point &guessedPoint,
             const label &pointRef
-        )
-        {
-            return guessedPoint;
-        }
+        );
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

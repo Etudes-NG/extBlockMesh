@@ -10,12 +10,14 @@
 Foam::featureEdgePoint::featureEdgePoint
 (
     const std::set<label> &pointLinked,
+    const std::set<std::set<Foam::label> > &triangles,
+    const point &initialPoint,
     blockMeshTopology *topo
 )
     :
-      pointLinked_(pointLinked),
-      pointLinkedNew_(pointLinked),
-      topo_(topo)
+    boundaryPoint(triangles, initialPoint, topo),
+    pointLinked_(pointLinked),
+    pointLinkedNew_(pointLinked)
 {
 }
 
@@ -26,7 +28,7 @@ Foam::featureEdgePoint::~featureEdgePoint()
 
 // * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
 
-std::map<Foam::scalar, Foam::point> Foam::featureEdgePoint::minDist
+std::map<Foam::scalar, Foam::point> Foam::featureEdgePoint::mapNeiborFeaturePts
 (
     const point &guessedPoint,
     const label &pointRef
@@ -41,8 +43,8 @@ std::map<Foam::scalar, Foam::point> Foam::featureEdgePoint::minDist
         ++ptI
     )
     {
-        const point p1(topo_->getBndPt(*ptI));
-        const point p2(topo_->getBndPt(pointRef));
+        const point p1(topo_->getPointCoord(*ptI));
+        const point p2(topo_->getPointCoord(pointRef));
         const point p3(guessedPoint);
         const scalar u
         (
@@ -73,42 +75,50 @@ std::set<Foam::label> Foam::featureEdgePoint::getPointLinked() const
     return pointLinked_;
 }
 
-Foam::point Foam::featureEdgePoint::getPoint
+Foam::point Foam::featureEdgePoint::getFeatureEdgePoint
 (
     const point &guessedPoint,
     const label &ref
 )
 {
-    std::map<scalar,point> minDists(minDist(guessedPoint, ref));
+    std::map<scalar,point> minDists(mapNeiborFeaturePts(guessedPoint, ref));
 
     if (minDists.empty())
     {
         const scalar distCenter
         (
-            mag(guessedPoint - topo_->getBndPt(ref))
+            mag(guessedPoint - topo_->getPointCoord(ref))
         );
         const scalar distExtrem1
         (
-            mag(guessedPoint - topo_->getBndPt(*pointLinkedNew_.begin()))
+            mag(guessedPoint - topo_->getPointCoord(*pointLinkedNew_.begin()))
         );
         const scalar distExtrem2
         (
-            mag(guessedPoint - topo_->getBndPt(*pointLinkedNew_.rbegin()))
+            mag(guessedPoint - topo_->getPointCoord(*pointLinkedNew_.rbegin()))
         );
 
         if (distCenter < distExtrem1 && distCenter < distExtrem2)
         { // Boundary is convex
-            return topo_->getBndPt(ref);
+            return topo_->getPointCoord(ref);
         }
         else if (distExtrem1 < distExtrem2)
         { // Nearest boundary point is begin
 
-            return changeLinkedsPoint(*pointLinkedNew_.begin(), guessedPoint);
+            return changeFeatureEdgeLinkedsPoint
+            (
+                *pointLinkedNew_.begin(),
+                guessedPoint
+            );
         }
         else
         { // Nearest boundary point is rbegin
 
-            return changeLinkedsPoint(*pointLinkedNew_.rbegin(), guessedPoint);
+            return changeFeatureEdgeLinkedsPoint
+            (
+                *pointLinkedNew_.rbegin(),
+                guessedPoint
+            );
         }
     }
     else
@@ -117,23 +127,16 @@ Foam::point Foam::featureEdgePoint::getPoint
     }
 }
 
-Foam::point Foam::featureEdgePoint::changeLinkedsPoint
+Foam::point Foam::featureEdgePoint::changeFeatureEdgeLinkedsPoint
 (
     const label &newRef,
     const point &guessedPoint
 )
 {
+    // Update the points linked
     pointLinkedNew_ = topo_->getPointTopoPtr(newRef)->getPointLinked();
 
-    if (pointLinkedNew_.size() == 2)
-    { // search point with this new linked point
-        return getPoint(guessedPoint, newRef);
-    }
-    else
-    { // Point linked is extremity
-        Info<< "Error feature edge point next invalid\n";
-        return topo_->getBndPt(newRef);
-    }
+    return getFeatureEdgePoint(guessedPoint, newRef);
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -144,20 +147,7 @@ Foam::point Foam::featureEdgePoint::smoothedPoint
     const label &pointRef
 )
 {
-    if (pointLinked_.size() == 2)
-    { // Point is linked to 2 points
-        return getPoint(guessedPoint, pointRef);
-    }
-    else if (pointLinked_.size() > 2 || pointLinked_.size() == 1)
-    { // Corner point
-        return topo_->getBndPt(pointRef);
-        Info<< "Corner point\n";
-    }
-    else
-    {
-        Info<< "Error feature edge point\n";
-        return topo_->getBndPt(pointRef);
-    }
+    return getFeatureEdgePoint(guessedPoint, pointRef);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

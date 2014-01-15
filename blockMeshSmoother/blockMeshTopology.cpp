@@ -102,6 +102,7 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint()
                 featurePointConnections_[ptI],
                 pointTriangles[ptI],
                 blockMeshPtr_->points()[ptI],
+                ptI,
                 this
             );
             break;
@@ -116,6 +117,7 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint()
             (
                 pointTriangles[ptI],
                 blockMeshPtr_->points()[ptI],
+                ptI,
                 this
             );
             break;
@@ -124,6 +126,7 @@ void Foam::blockMeshTopology::initialiseBoundaryPoint()
             (
                 pointTriangles[ptI],
                 blockMeshPtr_->points()[ptI],
+                ptI,
                 this
             );
             break;
@@ -456,7 +459,7 @@ Foam::point Foam::blockMeshTopology::optimalPoint
     const point &guessedPoint
 )
 {
-    return pointTopo_[pointRef]->smoothedPoint(guessedPoint, pointRef);
+    return pointTopo_[pointRef]->smoothedPoint(guessedPoint);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

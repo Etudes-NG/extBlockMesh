@@ -6,10 +6,11 @@ Foam::cornerPoint::cornerPoint
 (
     const std::set<std::set<Foam::label> > &triangles,
     const point &initialPoint,
+    const label &initialLabel,
     blockMeshTopology *topo
 )
     :
-      boundaryPoint(triangles, initialPoint, topo)
+      boundaryPoint(triangles, initialPoint, initialLabel, topo)
 {
 }
 

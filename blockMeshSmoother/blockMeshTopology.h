@@ -119,7 +119,7 @@ public:
         );
 
         //- Get boundary point data
-        point &getBoundaryPointCoord(const label &ref) const
+        point &getBndPointCoord(const label &ref) const
         {
             return pointTopo_[ref]->getboundaryPoint();
         }

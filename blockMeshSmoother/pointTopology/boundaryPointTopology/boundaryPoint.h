@@ -28,9 +28,14 @@ protected:
         //- Triangles faces connected to this point during smoothing
         std::set<std::set<label> > trianglesNew_;
 
-        // TODO remove storage of initial point
         //- Initial point
         point initialPoint_;
+
+        //- initial point label
+        label initialPointLabel_;
+
+        //- Point label during smoothing
+        label newPointLabel_;
 
 
     //- Protected member functions
@@ -41,8 +46,7 @@ protected:
             const label &refP2,
             const label &refP3,
             const point &p,
-            point &out,
-            const label &ref
+            point &out
         ) const;
 
         //- Change feature edge linked points and get optimal point
@@ -70,6 +74,7 @@ public:
         (
             const std::set<std::set<Foam::label> > &triangles,
             const point &initialPoint,
+            const label &initialLabel,
             blockMeshTopology *topo
         );
 
@@ -79,38 +84,26 @@ public:
     //- Member functions
 
         //- get optimal point with repect of point topo
-        point smoothedPoint
-        (
-            const Foam::point &guessedPoint,
-            const label &pointRef
-        );
+        point smoothedPoint(const point &guessedPoint);
 
         //- Get map of neibor features edge points sorted by minimal distance
         std::map<scalar,point> mapNeiborFeaturePts
         (
-            const point &guessedPoint,
-            const label &pointRef
-        );
+            const point &guessedPoint
+        ) const;
 
         //- Get map of neibor boundary points sorted by minimal distance
         std::map<scalar,point> mapBoundaryFeaturePts
         (
-            const point &guessedPoint,
-            const label &pointRef
+            const point &guessedPoint
         );
 
         //- Get optimal boundary point from guessed
-        point projectedBndPoint(const point &guessedPoint, const label &ref);
+        point projectedBndPoint(const point &guessedPoint);
 
 
         //- Get optimal point from guessed
         virtual point getFeatureEdgePoint
-        (
-            const point &guessedPoint,
-            const label &ref
-        );
-
-        virtual point getBoundaryPoint
         (
             const point &guessedPoint,
             const label &ref

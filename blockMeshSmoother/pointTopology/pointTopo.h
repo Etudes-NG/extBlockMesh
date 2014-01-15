@@ -42,17 +42,10 @@ public:
     //- Member functions
 
         //- Point smoothed with respect of topology constraints
-        virtual point smoothedPoint
-        (
-            const point &guessedPoint,
-            const label &pointRef
-        );
+        virtual point smoothedPoint(const point &guessedPoint);
 
         virtual std::map<scalar,point> mapNeiborFeaturePts
-        (
-            const point &guessedPoint,
-            const label &pointRef
-        ) const;
+        (const point &guessedPoint) const;
 
         //- Get linked point of feature edge point
         virtual std::set<label> getPointLinked() const;

@@ -12,12 +12,15 @@ Foam::featureEdgePoint::featureEdgePoint
     const std::set<label> &pointLinked,
     const std::set<std::set<Foam::label> > &triangles,
     const point &initialPoint,
+    const label &initialLabel,
     blockMeshTopology *topo
 )
     :
-    boundaryPoint(triangles, initialPoint, topo),
+    boundaryPoint(triangles, initialPoint, initialLabel, topo),
     pointLinked_(pointLinked),
-    pointLinkedNew_(pointLinked)
+    pntLinkedNew_(pointLinked),
+    featurePtLabel_(initialLabel),
+    newFeaturePtLabel_(initialLabel)
 {
 }
 
@@ -30,21 +33,20 @@ Foam::featureEdgePoint::~featureEdgePoint()
 
 std::map<Foam::scalar, Foam::point> Foam::featureEdgePoint::mapNeiborFeaturePts
 (
-    const point &guessedPoint,
-    const label &pointRef
-)
+    const point &guessedPoint
+) const
 {
     std::map<scalar,point> minDist;
 
     for
     (
-        std::set<label>::iterator ptI = pointLinkedNew_.begin();
-        ptI != pointLinkedNew_.end();
+        std::set<label>::iterator ptI = pntLinkedNew_.begin();
+        ptI != pntLinkedNew_.end();
         ++ptI
     )
     {
-        const point &p1(topo_->getBoundaryPointCoord(*ptI));
-        const point &p2(topo_->getBoundaryPointCoord(pointRef));
+        const point &p1(topo_->getBndPointCoord(*ptI));
+        const point &p2(topo_->getBndPointCoord(newFeaturePtLabel_));
         const point &p3(guessedPoint);
         const scalar u
         (
@@ -75,39 +77,50 @@ std::set<Foam::label> Foam::featureEdgePoint::getPointLinked() const
     return pointLinked_;
 }
 
-Foam::point Foam::featureEdgePoint::getFeatureEdgePoint
+Foam::point Foam::featureEdgePoint::changeFeatureEdgeLinkedsPoint
 (
-    const point &guessedPoint,
-    const label &ref
+    const label &newRef,
+    const point &guessedPoint
 )
 {
-    std::map<scalar,point> minDists(mapNeiborFeaturePts(guessedPoint, ref));
+    // Update the points linked
+    pntLinkedNew_ = topo_->getPointTopoPtr(newRef)->getPointLinked();
+    newFeaturePtLabel_ = newRef;
+
+    return smoothedPoint(guessedPoint);
+}
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+Foam::point Foam::featureEdgePoint::smoothedPoint(const point &guessedPoint)
+{
+    std::map<scalar,point> minDists(mapNeiborFeaturePts(guessedPoint));
 
     if (minDists.empty())
     {
         const scalar distCenter
         (
-            mag(guessedPoint - topo_->getBoundaryPointCoord(ref))
+            mag(guessedPoint - topo_->getBndPointCoord(newFeaturePtLabel_))
         );
         const scalar distExtrem1
         (
-            mag(guessedPoint - topo_->getBoundaryPointCoord(*pointLinkedNew_.begin()))
+            mag(guessedPoint - topo_->getBndPointCoord(*pntLinkedNew_.begin()))
         );
         const scalar distExtrem2
         (
-            mag(guessedPoint - topo_->getBoundaryPointCoord(*pointLinkedNew_.rbegin()))
+            mag(guessedPoint - topo_->getBndPointCoord(*pntLinkedNew_.rbegin()))
         );
 
         if (distCenter < distExtrem1 && distCenter < distExtrem2)
         { // Boundary is convex
-            return topo_->getBoundaryPointCoord(ref);
+            return topo_->getBndPointCoord(newFeaturePtLabel_);
         }
         else if (distExtrem1 < distExtrem2)
         { // Nearest boundary point is begin
 
             return changeFeatureEdgeLinkedsPoint
             (
-                *pointLinkedNew_.begin(),
+                *pntLinkedNew_.begin(),
                 guessedPoint
             );
         }
@@ -116,7 +129,7 @@ Foam::point Foam::featureEdgePoint::getFeatureEdgePoint
 
             return changeFeatureEdgeLinkedsPoint
             (
-                *pointLinkedNew_.rbegin(),
+                *pntLinkedNew_.rbegin(),
                 guessedPoint
             );
         }
@@ -125,29 +138,6 @@ Foam::point Foam::featureEdgePoint::getFeatureEdgePoint
     {
         return minDists.begin()->second;
     }
-}
-
-Foam::point Foam::featureEdgePoint::changeFeatureEdgeLinkedsPoint
-(
-    const label &newRef,
-    const point &guessedPoint
-)
-{
-    // Update the points linked
-    pointLinkedNew_ = topo_->getPointTopoPtr(newRef)->getPointLinked();
-
-    return getFeatureEdgePoint(guessedPoint, newRef);
-}
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::point Foam::featureEdgePoint::smoothedPoint
-(
-    const point &guessedPoint,
-    const label &pointRef
-)
-{
-    return getFeatureEdgePoint(guessedPoint, pointRef);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

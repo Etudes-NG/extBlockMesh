@@ -20,17 +20,6 @@ Foam::interiorPoint::~interiorPoint()
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 
-Foam::point Foam::interiorPoint::smoothedPoint
-(
-    const Foam::point &guessedPoint,
-    const Foam::label &pointRef
-)
-{
-    // No constraints the new point is the guessed point
-    return guessedPoint;
-}
-
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 

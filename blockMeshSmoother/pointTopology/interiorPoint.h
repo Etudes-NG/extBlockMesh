@@ -34,11 +34,7 @@ public:
     //- Member functions
 
         //- Point smoothed with respect of topology constraints
-        point smoothedPoint
-        (
-            const point &guessedPoint,
-            const label &pointRef
-        );
+        point smoothedPoint(const point &guessedPoint) {return guessedPoint;}
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

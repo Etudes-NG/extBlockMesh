@@ -23,6 +23,7 @@ public:
         (
             const std::set<std::set<Foam::label> > &triangles,
             const point &initialPoint,
+            const label &initialLabel,
             blockMeshTopology *topo
         );
 

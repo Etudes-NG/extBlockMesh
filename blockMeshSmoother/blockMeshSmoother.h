@@ -110,7 +110,7 @@ public:
         //- Construct from blockMesh, dictionary and args
         blockMeshSmoother
         (
-            blockMesh &block,
+            blockMesh *block,
             dictionary &smootherDict,
             const argList &args
         );

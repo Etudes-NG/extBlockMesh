@@ -16,13 +16,13 @@ Foam::blockMeshTopology::blockMeshTopology
     const dictionary &topoDict
 )
     :
-    pointTopo_(List<pointTopo*>(blockMeshPtr_->points().size())),
+    pointTopo_(List<pointTopo*>(blocks->points().size())),
     featureAngle_
     (
       acos(-1.) - readScalar(topoDict.lookup("featureAngle"))/180*acos(-1.)
     ),
     minNbFeatureEdge_(readLabel(topoDict.lookup("minEdgeForFeature"))),
-    pointsType_(List<pointType>(blockMeshPtr_->points().size(), internal)),
+    pointsType_(List<pointType>(blocks->points().size(), internal)),
     blockMeshPtr_(blocks),
     boundaryFacePoints_(blocks->patches().size())
 {

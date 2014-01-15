@@ -165,9 +165,9 @@ int main(int argc, char *argv[])
     if (meshDict.found("smoother"))
     {
         dictionary smoothDict(meshDict.subDict("smoother"));
-        blockMeshSmoother smoother(blocks, smoothDict, args);
-        smoother.smoothing(args);
 
+        blockMeshSmoother smoother(&blocks, smoothDict, args);
+        smoother.smoothing(args);
     }
 
     if (args.optionFound("blockTopology"))

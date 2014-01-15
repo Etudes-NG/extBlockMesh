@@ -10,12 +10,12 @@
 
 Foam::blockMeshSmoother::blockMeshSmoother
 (
-    blockMesh &block,
+    blockMesh *block,
     dictionary &smootherDict,
     const argList &args
 )
 :
-    blockMeshPtr_(&block),
+    blockMeshPtr_(block),
     dict_(smootherDict),
     pointCells_(labelListList(blockMeshPtr_->points().size())),
     cellPoints_(labelListList(blockMeshPtr_->cells().size())),
@@ -23,7 +23,7 @@ Foam::blockMeshSmoother::blockMeshSmoother
     cellNeighbors_(List<std::set<label> >(blockMeshPtr_->cells().size())),
     sumCellQuality_(scalarList(blockMeshPtr_->points().size())),
     cellQuality_(scalarList(blockMeshPtr_->cells().size())),
-    pointTopology_(blockMeshTopology(&block, smootherDict.subDict("features"))),
+    pointTopology_(blockMeshTopology(block, smootherDict.subDict("features"))),
     writeIntermediateMesh_(args.optionFound("writeStep"))
 {
     Info<< "\nGETMe smoothing with:"  << nl

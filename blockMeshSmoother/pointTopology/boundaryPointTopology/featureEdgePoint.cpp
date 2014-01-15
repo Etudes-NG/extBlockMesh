@@ -43,9 +43,9 @@ std::map<Foam::scalar, Foam::point> Foam::featureEdgePoint::mapNeiborFeaturePts
         ++ptI
     )
     {
-        const point p1(topo_->getPointCoord(*ptI));
-        const point p2(topo_->getPointCoord(pointRef));
-        const point p3(guessedPoint);
+        const point &p1(topo_->getBoundaryPointCoord(*ptI));
+        const point &p2(topo_->getBoundaryPointCoord(pointRef));
+        const point &p3(guessedPoint);
         const scalar u
         (
             (
@@ -87,20 +87,20 @@ Foam::point Foam::featureEdgePoint::getFeatureEdgePoint
     {
         const scalar distCenter
         (
-            mag(guessedPoint - topo_->getPointCoord(ref))
+            mag(guessedPoint - topo_->getBoundaryPointCoord(ref))
         );
         const scalar distExtrem1
         (
-            mag(guessedPoint - topo_->getPointCoord(*pointLinkedNew_.begin()))
+            mag(guessedPoint - topo_->getBoundaryPointCoord(*pointLinkedNew_.begin()))
         );
         const scalar distExtrem2
         (
-            mag(guessedPoint - topo_->getPointCoord(*pointLinkedNew_.rbegin()))
+            mag(guessedPoint - topo_->getBoundaryPointCoord(*pointLinkedNew_.rbegin()))
         );
 
         if (distCenter < distExtrem1 && distCenter < distExtrem2)
         { // Boundary is convex
-            return topo_->getPointCoord(ref);
+            return topo_->getBoundaryPointCoord(ref);
         }
         else if (distExtrem1 < distExtrem2)
         { // Nearest boundary point is begin

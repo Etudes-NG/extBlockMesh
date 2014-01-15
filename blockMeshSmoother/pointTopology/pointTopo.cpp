@@ -81,6 +81,14 @@ Foam::point Foam::pointTopo::getFeatureEdgePoint
     return point();
 }
 
+Foam::point &Foam::pointTopo::getboundaryPoint()
+{
+    FatalErrorIn("getboundaryPoint()")
+        << "Accessed from a non boundary point\n"
+        << nl
+        << exit(FatalError);
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 

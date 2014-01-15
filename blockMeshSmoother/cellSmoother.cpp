@@ -4,7 +4,7 @@
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 
-Foam::cellSmoother::cellSmoother(const pointField &H)
+Foam::cellSmoother::cellSmoother(pointField &H)
     :
       points_(H)
 {
@@ -33,6 +33,113 @@ Foam::scalar Foam::cellSmoother::tetrahedralMeanRatio
     }
 
     return 0.0;
+}
+
+Foam::pointField Foam::cellSmoother::dualOctahedron() const
+{
+    pointField oct(6);
+
+    oct[0] = (points_[0] + points_[1] + points_[2] + points_[3])/4;
+    oct[1] = (points_[0] + points_[4] + points_[5] + points_[1])/4;
+    oct[2] = (points_[1] + points_[5] + points_[6] + points_[2])/4;
+    oct[3] = (points_[2] + points_[6] + points_[7] + points_[3])/4;
+    oct[4] = (points_[0] + points_[3] + points_[7] + points_[4])/4;
+    oct[5] = (points_[4] + points_[7] + points_[6] + points_[5])/4;
+
+    return oct;
+}
+
+Foam::pointField Foam::cellSmoother::dualOctahedronFaceCentroid
+(
+    const pointField &oct
+) const
+{
+    pointField octC(8);
+    octC[0] = (oct[0] + oct[1] + oct[4])/3.0;
+    octC[1] = (oct[0] + oct[2] + oct[1])/3.0;
+    octC[2] = (oct[0] + oct[3] + oct[2])/3.0;
+    octC[3] = (oct[0] + oct[4] + oct[3])/3.0;
+    octC[4] = (oct[5] + oct[4] + oct[1])/3.0;
+    octC[5] = (oct[5] + oct[1] + oct[2])/3.0;
+    octC[6] = (oct[5] + oct[2] + oct[3])/3.0;
+    octC[7] = (oct[5] + oct[3] + oct[4])/3.0;
+
+    return octC;
+}
+
+Foam::pointField Foam::cellSmoother::dualOctahedronNormals
+(
+    const pointField &oct
+) const
+{
+    pointField octN(8);
+
+    octN[0] = (oct[1] - oct[0]) ^ (oct[4] - oct[0]);
+    octN[1] = (oct[2] - oct[0]) ^ (oct[1] - oct[0]);
+    octN[2] = (oct[3] - oct[0]) ^ (oct[2] - oct[0]);
+    octN[3] = (oct[4] - oct[0]) ^ (oct[3] - oct[0]);
+    octN[4] = (oct[4] - oct[5]) ^ (oct[1] - oct[5]);
+    octN[5] = (oct[1] - oct[5]) ^ (oct[2] - oct[5]);
+    octN[6] = (oct[2] - oct[5]) ^ (oct[3] - oct[5]);
+    octN[7] = (oct[3] - oct[5]) ^ (oct[4] - oct[5]);
+
+    return octN;
+}
+
+Foam::pointField Foam::cellSmoother::tranformedHexahedron
+(
+    const scalar &cor,
+    const Foam::pointField &octC,
+    const Foam::pointField &octN
+) const
+{
+    pointField Hp(8);
+    forAll (Hp, ptI)
+    {
+        Hp[ptI] = octC[ptI] + cor/std::sqrt(mag(octN[ptI]))*octN[ptI];
+    }
+
+    return Hp;
+}
+
+Foam::point Foam::cellSmoother::centroidOfHex(const pointField &Hp) const
+{
+    point c(0.0, 0.0, 0.0);
+    forAll (points_, ptI)
+    {
+        c += Hp[ptI];
+    }
+    return c/8.0;
+}
+
+Foam::scalar Foam::cellSmoother::ratioOfAvgLength
+(
+    Foam::pointField &Hp
+) const
+{
+    return
+    (
+        (edgeAverageLength()/12.0)/(cellSmoother(Hp).edgeAverageLength()/12.0)
+    );
+}
+
+Foam::scalar Foam::cellSmoother::edgeAverageLength() const
+{
+    return
+    (
+        mag(points_[0] - points_[1]) +
+        mag(points_[1] - points_[2]) +
+        mag(points_[2] - points_[3]) +
+        mag(points_[3] - points_[0]) +
+        mag(points_[0] - points_[4]) +
+        mag(points_[1] - points_[5]) +
+        mag(points_[2] - points_[6]) +
+        mag(points_[3] - points_[7]) +
+        mag(points_[4] - points_[5]) +
+        mag(points_[5] - points_[6]) +
+        mag(points_[6] - points_[7]) +
+        mag(points_[7] - points_[4])
+    )/12.0;
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -92,96 +199,29 @@ Foam::scalar Foam::cellSmoother::meanRatio() const
 }
 
 Foam::pointField Foam::cellSmoother::geometricTranform
+
 (
     const scalar &cor
 ) const
 {
-    // Labels for dual octahedron
-    labelList vb1(6),  vb2(6), vb3(6), vb4(6);
-    vb1[0] = 0;	vb1[1] = 0;	vb1[2] = 1;	vb1[3] = 2;	vb1[4] = 0;	vb1[5] = 4;
-    vb2[0] = 1;	vb2[1] = 4;	vb2[2] = 5;	vb2[3] = 6;	vb2[4] = 3;	vb2[5] = 7;
-    vb3[0] = 2;	vb3[1] = 5;	vb3[2] = 6;	vb3[3] = 7;	vb3[4] = 7;	vb3[5] = 6;
-    vb4[0] = 3;	vb4[1] = 1;	vb4[2] = 2;	vb4[3] = 3;	vb4[4] = 4;	vb4[5] = 5;
-
-    // Labels for normals
-    labelList vc1(8),  vc2(8), vc3(8);
-    vc1[0] = 0;	vc1[1] = 0;	vc1[2] = 0;	vc1[3] = 0;
-    vc1[4] = 5;	vc1[5] = 5;	vc1[6] = 5;	vc1[7] = 5;
-
-    vc2[0] = 1;	vc2[1] = 2;	vc2[2] = 3;	vc2[3] = 4;
-    vc2[4] = 4;	vc2[5] = 1;	vc2[6] = 2;	vc2[7] = 3;
-
-    vc3[0] = 4;	vc3[1] = 1;	vc3[2] = 2;	vc3[3] = 3;
-    vc3[4] = 1;	vc3[5] = 2;	vc3[6] = 3;	vc3[7] = 4;
-
     // Compute dual octahedron
-    pointField oct(6);
-    forAll (vb1, octPtI)
-    {
-        oct[octPtI] =
-        (
-            points_[vb1[octPtI]] + points_[vb2[octPtI]] +
-            points_[vb3[octPtI]] + points_[vb4[octPtI]]
-        )/4;
-    }
-
-    // Compute centroid of octahedron faces
-    pointField octC(8);
-    forAll (octC, octCI)
-    {
-        octC[octCI] = (oct[vc1[octCI]] + oct[vc2[octCI]] + oct[vc3[octCI]])/3;
-    }
-
-    // Compute normal of octahedron faces
-    pointField octN(8);
-    forAll (octN, ptI)
-    {
-        octN[ptI] =
-                (oct[vc2[ptI]] - oct[vc1[ptI]]) ^
-                (oct[vc3[ptI]] - oct[vc1[ptI]]);
-    }
+    const pointField oct(dualOctahedron());
 
     // Compute new points
-    pointField Hp(8);
-    forAll (points_, ptI)
-    {
-        Hp[ptI] = octC[ptI] + cor/std::sqrt(mag(octN[ptI]))*octN[ptI];
-    }
+    pointField Hp(tranformedHexahedron
+    (
+        cor,
+        dualOctahedronFaceCentroid(oct),
+        dualOctahedronNormals(oct))
+    );
 
     // Scaling of new points
-    // Centroid of cell
-    point c(0, 0, 0);
-    forAll (points_, ptI)
-    {
-        c += Hp[ptI];
-    }
-    c /= 8;
+    const scalar scalingfact(ratioOfAvgLength(Hp));
 
-    // Labels for edge lengh
-    labelList vd1(12),  vd2(12);
-    vd1[0] = 0;	vd1[1] = 1;	vd1[2] = 2;	vd1[3] = 3;
-    vd1[4] = 0;	vd1[5] = 1;	vd1[6] = 2;	vd1[7] = 3;
-    vd1[8] = 4;	vd1[9] = 5;	vd1[10]= 6; vd1[11]= 7;
-
-    vd2[0] = 1;	vd2[1] = 2;	vd2[2] = 3;	vd2[3] = 0;
-    vd2[4] = 4;	vd2[5] = 5;	vd2[6] = 6;	vd2[7] = 7;
-    vd2[8] = 5;	vd2[9] = 6;	vd2[10]= 7;	vd2[11]= 4;
-
-    // Scaling factor (keeping avg edge lenght)
-    scalar mh1(0.0), mh2(0.0);
-    forAll (vd1, edgeI)
-    {
-        mh1 += mag(points_[vd1[edgeI]] - points_[vd2[edgeI]]);
-        mh2 += mag(Hp[vd1[edgeI]] - Hp[vd2[edgeI]]);
-    }
-    mh1 /= 12;
-    mh2 /= 12;
-    const scalar scalingfact(mh1/mh2);
-
-    pointField C(8, c);
+    const pointField C(8, centroidOfHex(Hp));
 
     // Return scaled new points
-    return C + scalingfact*(Hp - C);
+    return (C + scalingfact*(Hp - C));
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

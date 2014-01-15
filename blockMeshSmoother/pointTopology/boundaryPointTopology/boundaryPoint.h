@@ -118,6 +118,9 @@ public:
 
         //- Get triangles linked
         std::set<std::set<label> > getTrianglesLinked() const;
+
+        //- Get boundaryPoint coord
+        point &getboundaryPoint();
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

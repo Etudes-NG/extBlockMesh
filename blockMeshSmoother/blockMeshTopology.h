@@ -119,9 +119,9 @@ public:
         );
 
         //- Get boundary point data
-        point getPointCoord(const label &ref) const
+        point &getBoundaryPointCoord(const label &ref) const
         {
-            return blockMeshPtr_->points()[ref];
+            return pointTopo_[ref]->getboundaryPoint();
         }
 
         pointTopo *getPointTopoPtr(const label &ref) const

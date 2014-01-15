@@ -79,7 +79,7 @@ void Foam::blockMeshSmoother::meshMeanRatio()
     meanQuality_ = 0.0;
     forAll (blockMeshPtr_->cells(), cellI)
     {
-        const pointField H
+        pointField H
         (
             blockMeshPtr_->cells()[cellI].points(blockMeshPtr_->points())
         );
@@ -113,12 +113,9 @@ Foam::pointField Foam::blockMeshSmoother::addTransformedElementNodesAndWeights
     {
         if (cellQuality_[cellI] < targetQual)
         {
-            const pointField H
+            pointField H
             (
-                blockMeshPtr_->cells()[cellI].points
-                (
-                    blockMeshPtr_->points()
-                )
+                blockMeshPtr_->cells()[cellI].points(blockMeshPtr_->points())
             );
 
             const pointField Hr(cellSmoother(H).geometricTranform(eTP));

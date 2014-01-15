@@ -17,7 +17,7 @@ class cellSmoother
     // Private data
 
         // Cell points
-        pointField points_;
+        pointField &points_;
 
     // Private member functions
 
@@ -29,11 +29,38 @@ class cellSmoother
             const label &pt2,
             const label &pt3
         ) const;
+
+        //- Hexahedron dual octahedron
+        pointField dualOctahedron() const;
+
+        //- Octahedron faces centroid
+        pointField dualOctahedronFaceCentroid(const pointField &oct) const;
+
+        //- Octahedron normal
+        pointField dualOctahedronNormals(const pointField &oct) const;
+
+        //- Transfomred hex
+        pointField tranformedHexahedron
+        (
+            const scalar &cor,
+            const pointField &octC,
+            const pointField &octN
+        ) const;
+
+        //- Centroid of hex
+        point centroidOfHex(const pointField &Hp) const;
+
+        //- Ratio of length
+        scalar ratioOfAvgLength(pointField &Hp) const;
+
+        //- Edge average length
+        scalar edgeAverageLength() const;
+
 public:
     // Constructors
 
         //- Construct from blockMesh and dictionary
-        cellSmoother(const pointField &H);
+        cellSmoother(pointField &H);
 
     // Member functions
 

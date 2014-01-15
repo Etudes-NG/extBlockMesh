@@ -67,6 +67,9 @@ public:
             const point &guessedPoint,
             const label &ref
         );
+
+        //- Get boundaryPoint coord
+        virtual point &getboundaryPoint();
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

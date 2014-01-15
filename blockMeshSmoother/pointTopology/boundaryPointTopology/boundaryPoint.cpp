@@ -35,9 +35,9 @@ bool Foam::boundaryPoint::isOnTriangle
 {
     // http://math.stackexchange.com/questions/544946/determine-if-projection-of-3d-point-onto-plane-is-within-a-triangle/
 
-    const point p1(topo_->getPointCoord(ref));
-    const point p2(topo_->getPointCoord(refP2));
-    const point p3(topo_->getPointCoord(refP3));
+    const point &p1(topo_->getBoundaryPointCoord(ref));
+    const point &p2(topo_->getBoundaryPointCoord(refP2));
+    const point &p3(topo_->getBoundaryPointCoord(refP3));
 
     const point u(p2 - p1);
     const point v(p3 - p1);
@@ -71,6 +71,11 @@ std::set<std::set<Foam::label> > Foam::boundaryPoint::getTrianglesLinked() const
     return triangles_;
 }
 
+Foam::point &Foam::boundaryPoint::getboundaryPoint()
+{
+    return initialPoint_;
+}
+
 Foam::point Foam::boundaryPoint::projectedBndPoint
 (
     const point &guessedPoint,
@@ -81,7 +86,7 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
 
     if (minDists.empty())
     {
-        const scalar distCenter(mag(guessedPoint - topo_->getPointCoord(ref)));
+        const scalar distCenter(mag(guessedPoint - topo_->getBoundaryPointCoord(ref)));
 
         // Set of all extremity point
         std::set<label> extremPoint;
@@ -117,7 +122,7 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
             (
                 std::make_pair<scalar, label>
                 (
-                    mag(guessedPoint - topo_->getPointCoord(*ptI)),
+                    mag(guessedPoint - topo_->getBoundaryPointCoord(*ptI)),
                     *ptI
                 )
             );
@@ -125,7 +130,7 @@ Foam::point Foam::boundaryPoint::projectedBndPoint
 
         if (distCenter < dist.begin()->first)
         { // convex
-            return topo_->getPointCoord(ref);
+            return topo_->getBoundaryPointCoord(ref);
         }
         else
         {
@@ -166,7 +171,7 @@ Foam::point Foam::boundaryPoint::changeBoundaryPointLinkedFaces
 
 Foam::point Foam::boundaryPoint::getInitialPoint(const Foam::label &ref) const
 {
-    return topo_->getPointCoord(ref);
+    return topo_->getBoundaryPointCoord(ref);
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -258,7 +263,7 @@ Foam::point Foam::boundaryPoint::getBoundaryPoint
 
     if (minDists.empty())
     { // No projection found
-        const scalar distCenter(mag(guessedPoint - topo_->getPointCoord(ref)));
+        const scalar distCenter(mag(guessedPoint - topo_->getBoundaryPointCoord(ref)));
 
         // Set of all extremity point
         std::set<label> extremPoint;
@@ -294,7 +299,7 @@ Foam::point Foam::boundaryPoint::getBoundaryPoint
             (
                 std::make_pair<scalar, label>
                 (
-                    mag(guessedPoint - topo_->getPointCoord(*ptI)),
+                    mag(guessedPoint - topo_->getBoundaryPointCoord(*ptI)),
                     *ptI
                 )
             );
@@ -302,7 +307,7 @@ Foam::point Foam::boundaryPoint::getBoundaryPoint
 
         if (distCenter < dist.begin()->first)
         { // convex, return the closest point
-            return topo_->getPointCoord(ref);
+            return topo_->getBoundaryPointCoord(ref);
         }
         else
         { // concave update the conected faces with thoses arround closest point

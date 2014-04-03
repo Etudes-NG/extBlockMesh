@@ -85,4 +85,9 @@ doc/Doxygen/DTAGS
 /.cproject
 /.project
 
+# ignore qt-creator project files - anywhere
+*.config
+*.creator
+*.creator.user
+
 # end-of-file

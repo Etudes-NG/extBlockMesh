@@ -5,7 +5,7 @@ EXE_INC = \
     -I$(LIB_SRC)/dynamicMesh/lnInclude \
     -I$(EXTBLOCKMESH_CODE)/blockMeshSmoother \
     -I$(EXTBLOCKMESH_CODE)/blockMeshSmoother/pointTopology \
-    -I$(EXTBLOCKMESH_CODE)/blockMeshSmoother/pointTopology/boundaryPointTopology
+    -I$(EXTBLOCKMESH_CODE)/blockMeshSmoother/pointTopology/boundaryPointTopology \
 
 
 EXE_LIBS = \

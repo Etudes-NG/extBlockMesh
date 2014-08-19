@@ -386,7 +386,7 @@ void Foam::SmootherBoundary::createPoints()
             _interiorPoint.insert(ptI);
         }
     }
-    writeFeaturesEdges();
+    //writeFeaturesEdges();
 
     Info<< "      - Number of feature points:  " << nbVertex << nl
         << "      - Number of edge points:     " << nbEdge << nl

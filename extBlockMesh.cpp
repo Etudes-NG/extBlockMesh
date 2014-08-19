@@ -80,14 +80,16 @@ License
 
 #include "Pair.H"
 #include "slidingInterface.H"
+#include "blockMesh.H"
 
-#include "blockMeshSmoother.h"
+// -- Added from OpenFOAM
+#include "lineEdge.H"
+#include "IOmanip.H"
+#include <ios>
+
+// -- Created class
+#include "MeshSmoother.h"
 //-----------------------------------------
-
-
-#include <set>
-#include <vector>
-#include <algorithm>
 
 using namespace Foam;
 
@@ -176,19 +178,10 @@ int main(int argc, char *argv[])
     Info<< "Creating block mesh from\n    "
         << meshDictIO.objectPath() << endl;
 
-    blockMesh::verbose(true);
+    blockMesh::verbose(false);
 
     IOdictionary meshDict(meshDictIO);
     blockMesh blocks(meshDict, regionName);
-
-    // GETMe adaptive smoothing
-    if (meshDict.found("smoother"))
-    {
-        dictionary smoothDict(meshDict.subDict("smoother"));
-
-        blockMeshSmoother smoother(&blocks, smoothDict, args);
-        smoother.smoothing(args);
-    }
 
     if (args.optionFound("blockTopology"))
     {
@@ -236,6 +229,7 @@ int main(int argc, char *argv[])
 
     word defaultFacesName = "defaultFaces";
     word defaultFacesType = emptyPolyPatch::typeName;
+
     polyMesh mesh
     (
         IOobject
@@ -252,6 +246,56 @@ int main(int argc, char *argv[])
         defaultFacesName,
         defaultFacesType
     );
+
+    // ########################################################################
+    // Smoothing
+
+    Info<< nl << "Initialize smoother algorithm" << nl;
+
+    const word smootherDictName("smootherDict");
+    IOobject smootherDictIO
+    (
+        smootherDictName,
+        runTime.system(),
+        "",
+        runTime,
+        IOobject::MUST_READ,
+        IOobject::NO_WRITE,
+        false
+    );
+
+    if (!smootherDictIO.headerOk())
+    {
+        FatalErrorIn(args.executable())
+            << "Cannot open mesh smoothing file\n    "
+            << smootherDictIO.objectPath()
+            << nl
+            << exit(FatalError);
+    }
+
+    IOdictionary smootherDict(smootherDictIO);
+    MeshSmoother meshSmoother(&mesh, &smootherDict, &blocks);
+
+    if (args.optionFound("writeStep"))
+    {
+        meshSmoother.updateAndWrite
+        (
+            regionName,
+            defaultFacesName,
+            defaultFacesType,
+            runTime
+        );
+    }
+    else
+    {
+        meshSmoother.update();
+
+        // Reset mesh directory to constant/polyMesh !!! Hard to find :P
+        mesh.setInstance(runTime.constant());
+    }
+
+    // End of smoothing
+    //##########################################################################
 
     // Read in a list of dictionaries for the merge patch pairs
     if (meshDict.found("mergePatchPairs"))
@@ -358,14 +402,21 @@ int main(int argc, char *argv[])
     IOstream::defaultPrecision(max(10u, IOstream::defaultPrecision()));
 
     Info<< nl << "Writing polyMesh" << endl;
-    mesh.removeFiles();
-    if (!mesh.write())
+
+    // #########################################################################
+
+    if (!args.optionFound("writeStep"))
     {
-        FatalErrorIn(args.executable())
-            << "Failed writing polyMesh."
-            << exit(FatalError);
+        mesh.removeFiles();
+        if (!mesh.write())
+        {
+            FatalErrorIn(args.executable())
+                << "Failed writing polyMesh."
+                << exit(FatalError);
+        }
     }
 
+    // #########################################################################
 
     //
     // write some information

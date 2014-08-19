@@ -4,10 +4,8 @@ set -x
 
 export EXTBLOCKMESH_CODE=$PWD
 
-echo $EXTBLOCKMESH_CODE
-
-wmake blockMeshSmoother
+wmake MeshSmoother
 wmake
+wmake hexMeshSmoother
 
-
-# ----------------------------------------------------------------- end-of-file
+# ----------------------------------------------------------------- end	of-file

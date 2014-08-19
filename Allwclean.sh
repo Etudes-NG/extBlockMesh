@@ -2,8 +2,8 @@
 cd ${0%/*} || exit 1    # run from this directory
 set -x
 
-wclean blockMeshSmoother
+wclean MeshSmoother
 wclean
 
 
-# ----------------------------------------------------------------- end-of-file
+# ---------------------------------------------------------------- end-of-file

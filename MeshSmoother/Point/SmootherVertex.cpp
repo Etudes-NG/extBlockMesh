@@ -24,9 +24,9 @@ License
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * //
 
-Foam::SmootherVertex::SmootherVertex(const label ref)
+Foam::SmootherVertex::SmootherVertex(const label ref, const point& pt)
 :
-    SmootherPoint(ref)
+    SmootherPoint(ref, pt)
 {
 }
 

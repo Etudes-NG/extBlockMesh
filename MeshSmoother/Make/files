@@ -8,5 +8,6 @@ Point/SmootherVertex.cpp
 Point/Features/SmootherEdge.cpp
 Point/Features/SmootherFeature.cpp
 Point/Features/SmootherSurface.cpp
+BoundaryLayer/SmootherBoundaryLayer.cpp
 
 LIB = $(FOAM_USER_LIBBIN)/libMeshSmoother

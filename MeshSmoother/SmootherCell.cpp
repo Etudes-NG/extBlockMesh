@@ -48,10 +48,30 @@ Foam::scalar Foam::SmootherCell::tetCellQuality(const label ref) const
 
     if (sigma > VSMALL)
     {
+        // std::pow
         return 3.0*std::pow(sigma, 2.0/3.0)/magSqr(mA);
+
+        // Faster with fast pow (approx 1/4 less time in mean cycle)
+        // But give inacurracy when mesh is close to orthonormal use with
+        // caution
+// http://martin.ankerl.com/2012/01/25/optimized-approximative-pow-in-c-and-cpp/
+//        return 3.0*fastPow(sigma)/magSqr(mA);
     }
 
     return 0.0;
+}
+
+scalar SmootherCell::fastPow(const scalar &s) const
+{
+    union
+    {
+        scalar d;
+        label x[2];
+    } u = {s};
+
+    u.x[1] = static_cast<label>(2.0/3.0*(u.x[1] - 1072632447) + 1072632447);
+    u.x[0] = 0;
+    return u.d;
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

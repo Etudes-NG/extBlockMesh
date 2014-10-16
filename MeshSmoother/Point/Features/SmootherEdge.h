@@ -40,7 +40,7 @@ class SmootherEdge
 {
 
 public:
-    SmootherEdge(const label ref, const label featureRef);
+    SmootherEdge(const label ref, const label featureRef, const point &pt);
 
     void GETMeSmooth();
     void snap();

@@ -26,9 +26,14 @@ License
 
 // * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::SmootherFeature::SmootherFeature(const label ref, const label featureRef)
+Foam::SmootherFeature::SmootherFeature
+(
+    const label ref,
+    const label featureRef,
+    const point& pt
+)
 :
-    SmootherPoint(ref),
+    SmootherPoint(ref, pt),
     _featureRef(featureRef)
 {
 }

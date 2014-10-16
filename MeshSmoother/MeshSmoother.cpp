@@ -294,6 +294,32 @@ void Foam::MeshSmoother::writeMesh
 
 void MeshSmoother::GETMeSmoothing()
 {
+    //-------------------------------------------------------------------------
+
+    // Reset all points
+    forAll(_polyMesh->points(), ptI)
+    {
+        _bnd->pt(ptI)->laplaceReset();
+    }
+
+    // LaplaceSmooth boundary points
+    labelHashSet snapPoints = _bnd->featuresPoints();
+    forAllConstIter(labelHashSet, snapPoints, ptI)
+    {
+        _bnd->pt(ptI.key())->featLaplaceSmooth();
+    }
+    iterativeNodeRelaxation(snapPoints, _ctrl->snapRelaxTable());
+
+    // Snap boundary points
+    snapPoints = _bnd->featuresPoints();
+    forAllConstIter(labelHashSet, snapPoints, ptI)
+    {
+        _bnd->pt(ptI.key())->snap();
+    }
+    iterativeNodeRelaxation(snapPoints, _ctrl->snapRelaxTable());
+
+    //-------------------------------------------------------------------------
+
     forAll(_polyMesh->points(), ptI)
     {
         _bnd->pt(ptI)->GETMeReset();
@@ -313,6 +339,8 @@ void MeshSmoother::GETMeSmoothing()
     }
 
     iterativeNodeRelaxation(transformedPoints, _param->relaxationTable());
+
+//    _bnd->writeAllSurfaces(_param->getIterNb());
 }
 
 void MeshSmoother::snapSmoothing()
@@ -339,6 +367,12 @@ void MeshSmoother::snapSmoothing()
     }
     iterativeNodeRelaxation(snapPoints, _ctrl->snapRelaxTable());
 
+    // Remove points from unsnaped point list if snaped
+    forAll(_polyMesh->points(), ptI)
+    {
+        _bnd->pt(ptI)->needSnap();
+    }
+
     // LaplaceSmooth boundary points
     snapPoints = _bnd->featuresPoints();
     forAllConstIter(labelHashSet, snapPoints, ptI)
@@ -346,12 +380,6 @@ void MeshSmoother::snapSmoothing()
         _bnd->pt(ptI.key())->featLaplaceSmooth();
     }
     iterativeNodeRelaxation(snapPoints, _ctrl->snapRelaxTable());
-
-    // Remove points from unsnaped point list if snaped
-    forAll(_polyMesh->points(), ptI)
-    {
-        _bnd->pt(ptI)->needSnap();
-    }
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -376,13 +404,11 @@ Foam::MeshSmoother::MeshSmoother
 
     SmootherPoint dummyPoint;
     dummyPoint.setStaticItems(_bnd, _param, _polyMesh);
-    _bnd->createPoints();
 
     forAll(_cell, cellI)
     {
         _cell[cellI] = new SmootherCell(_polyMesh->cellShapes()[cellI]);
     }
-
     _cell[0]->setStaticItems(_bnd,_ctrl->transformationParameter());
 
     // Analyse initial quality

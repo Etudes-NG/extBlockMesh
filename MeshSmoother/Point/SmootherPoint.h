@@ -62,13 +62,11 @@ protected:
         // PolyMesh point ref
         label _ptRef;
 
-        bool _isTransformed;
-
 public:
     //- Constructors
 
         //- Construct from point ref
-        SmootherPoint(const label ref);
+        SmootherPoint(const label ref, const point& pt);
 
         // Empty constructor
         SmootherPoint();
@@ -125,7 +123,6 @@ public:
 
 void SmootherPoint::GETMeReset()
 {
-    _isTransformed = false;
     _weightingFactor = 0.0;
     _movedPt = point(0.0, 0.0, 0.0);
     _initialPt = _relaxedPt;
@@ -133,20 +130,17 @@ void SmootherPoint::GETMeReset()
 
 void SmootherPoint::laplaceReset()
 {
-    _isTransformed = true;
     _initialPt = _relaxedPt;
 }
 
 void SmootherPoint::addWeight(const scalar &wei, const point &pt)
 {
-    _isTransformed = true;
     _weightingFactor += wei;
     _movedPt += pt*wei;
 }
 
 void SmootherPoint::addWeight(const scalar& wei)
 {
-    _isTransformed = true;
     _weightingFactor += wei;
     _movedPt += wei*_initialPt;
 }
@@ -161,15 +155,7 @@ void SmootherPoint::addRelaxLevel(const scalarList &r)
 
 void SmootherPoint::relaxPoint(const scalarList &r)
 {
-    if (_isTransformed)
-    {
-        _relaxedPt =
-            (1.0 - r[_relaxLevel])*_initialPt + r[_relaxLevel]*_movedPt;
-    }
-    else
-    {
-        _relaxedPt = _initialPt;
-    }
+    _relaxedPt = (1.0 - r[_relaxLevel])*_initialPt + r[_relaxLevel]*_movedPt;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

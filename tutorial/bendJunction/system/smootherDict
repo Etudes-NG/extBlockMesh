@@ -94,6 +94,10 @@ snapControls
             internalFeatureEdges false;
         }
     }
+    
+    // For debug purpose, write features vertex, edges, boundary and interior
+    // point
+    writeFeatures                false;
 }
 
 

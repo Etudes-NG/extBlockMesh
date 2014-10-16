@@ -20,56 +20,34 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#ifndef SMOOTHERSURFACEBL_H
+#define SMOOTHERSURFACEBL_H
+
 #include "SmootherSurface.h"
 
-#include "polyMesh.H"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "SmootherBoundary.h"
+namespace Foam
+{
 
-// * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
+/*---------------------------------------------------------------------------*\
+                 Class MeshSmootherPointSurface Declaration
+\*---------------------------------------------------------------------------*/
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Foam::SmootherSurface::SmootherSurface
-(
-    const label ref,
-    const label featureRef,
-    const point& pt
-)
+class SmootherSurfaceBL
 :
-    SmootherFeature(ref, featureRef, pt)
+    public SmootherSurface
 {
-}
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void Foam::SmootherSurface::GETMeSmooth()
-{
-    SmootherPoint::GETMeSmooth();
-    _movedPt = _bnd->snapToSurf(_featureRef, _movedPt);
-}
-
-void SmootherSurface::snap()
-{
-    _movedPt = _bnd->snapToSurf(_featureRef, _initialPt);
-}
-
-void SmootherSurface::featLaplaceSmooth()
-{
-    const labelList& pp = _polyMesh->pointPoints(_ptRef);
-    label nbPt = 0;
-    _movedPt = point(0.0, 0.0, 0.0);
-    forAll(pp, ptI)
-    {
-        if (_bnd->pt(pp[ptI])->isSurface())
-        {
-            _movedPt += _bnd->pt(pp[ptI])->getRelaxedPoint();
-            ++nbPt;
-        }
-    }
-    _movedPt /= nbPt;
-}
+public:
+    SmootherSurfaceBL(const label ref, const label featureRef);
+};
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif // SMOOTHERSURFACEBL_H
 
 // ************************************************************************* //

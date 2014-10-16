@@ -20,56 +20,49 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "SmootherSurface.h"
+#ifndef SMOOTHERBOUNDARYLAYER_H
+#define SMOOTHERBOUNDARYLAYER_H
 
-#include "polyMesh.H"
-
-#include "SmootherBoundary.h"
-
-// * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Foam::SmootherSurface::SmootherSurface
-(
-    const label ref,
-    const label featureRef,
-    const point& pt
-)
-:
-    SmootherFeature(ref, featureRef, pt)
-{
-}
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void Foam::SmootherSurface::GETMeSmooth()
-{
-    SmootherPoint::GETMeSmooth();
-    _movedPt = _bnd->snapToSurf(_featureRef, _movedPt);
-}
-
-void SmootherSurface::snap()
-{
-    _movedPt = _bnd->snapToSurf(_featureRef, _initialPt);
-}
-
-void SmootherSurface::featLaplaceSmooth()
-{
-    const labelList& pp = _polyMesh->pointPoints(_ptRef);
-    label nbPt = 0;
-    _movedPt = point(0.0, 0.0, 0.0);
-    forAll(pp, ptI)
-    {
-        if (_bnd->pt(pp[ptI])->isSurface())
-        {
-            _movedPt += _bnd->pt(pp[ptI])->getRelaxedPoint();
-            ++nbPt;
-        }
-    }
-    _movedPt /= nbPt;
-}
+#include "dictionary.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+/*---------------------------------------------------------------------------*\
+                  Class SmootherBoundaryLayer Declaration
+\*---------------------------------------------------------------------------*/
+
+class SmootherBoundaryLayer
+{
+    //- Private data
+
+        // Number of boundary layers
+        label _nbLayers;
+
+        // Expansion ratio
+        scalar _expansionRatio;
+
+        // Relative size
+        bool _relativeSize;
+
+        // Wanted thickness of final added cell layer. If multiple
+        // layers is the thickness of the layer furthest away from the
+        // wall. Relative to undistorted size of cell outside layer.
+        scalar _finalLayerThickness;
+
+public:
+    SmootherBoundaryLayer(const dictionary &blDict);
+    SmootherBoundaryLayer();
+};
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif // SMOOTHERBOUNDARYLAYER_H
 
 // ************************************************************************* //

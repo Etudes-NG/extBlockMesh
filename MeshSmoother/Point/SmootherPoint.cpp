@@ -38,9 +38,9 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::SmootherPoint::SmootherPoint(const label ref)
+Foam::SmootherPoint::SmootherPoint(const label ref, const point &pt)
 :
-    _relaxedPt(_polyMesh->points()[ref]),
+    _relaxedPt(pt),
     _ptRef(ref)
 {
 }
@@ -63,8 +63,6 @@ void Foam::SmootherPoint::setStaticItems
     _polyMesh = mesh;
 }
 
-
-
 void SmootherPoint::laplaceSmooth()
 {
     const labelList& pp = _polyMesh->pointPoints(_ptRef);
@@ -75,10 +73,6 @@ void SmootherPoint::laplaceSmooth()
     }
     _movedPt /= pp.size();
 }
-
-
-
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

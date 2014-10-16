@@ -22,14 +22,17 @@ License
 
 #include "SmootherBoundary.h"
 
+#include "SmootherVertex.h"
+#include "SmootherEdge.h"
+#include "SmootherSurface.h"
+
 #include "dictionary.H"
 #include "polyMesh.H"
 #include "Time.H"
 #include <OFstream.H>
+#include "unitConversion.H"
 
-#include "SmootherVertex.h"
-#include "SmootherEdge.h"
-#include "SmootherSurface.h"
+#include <sstream>
 
 // * * * * * * * * * * * * * * * Private Functions * * * * * * * * * * * * * //
 
@@ -38,6 +41,7 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
     _featureAngle = readScalar(snapDict.lookup("featureAngle"));
     _minEdgeForFeature = readLabel(snapDict.lookup("minEdgeForFeature"));
     _minFeatureEdgeLength = readScalar(snapDict.lookup("minFeatureEdgeLength"));
+    _writeFeatures = readBool(snapDict.lookup("writeFeatures"));
 
     Info<< "  snapControls:"  << nl
         << "    - Feature angle              : " << _featureAngle  << nl
@@ -52,6 +56,7 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
     _extEdgMeshList.resize(NbPolyPatchs, 0);
     _bndUseIntEdges.resize(NbPolyPatchs, true);
     _bndIsSnaped.resize(NbPolyPatchs, true);
+    _bndLayers.resize(NbPolyPatchs);
 
     if (snapDict.found("boundarys"))
     {
@@ -69,17 +74,6 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
             if (patchDic.found("triSurface"))
             {
                 word file = patchDic.lookup("triSurface");
-                Info<< "        - Snaping surface    : " << file << nl;
-
-                IOobject surfFile
-                (
-                    file,
-                    _polyMesh->time().constant(),
-                    "triSurface",
-                    _polyMesh->time(),
-                    IOobject::MUST_READ,
-                    IOobject::NO_WRITE
-                );
 
                 bool exist = false;
                 for(label patchJ = 0; patchJ < NbPolyPatchs && !exist; ++patchJ)
@@ -88,15 +82,45 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
 
                     if (exist)
                     {
+                        Info<< "        - Snaping surface    : " << file << nl;
+
                         _bndIsSnaped[patchJ] = false;
+
+                        IOobject surfFile
+                        (
+                            file,
+                            _polyMesh->time().constant(),
+                            "triSurface",
+                            _polyMesh->time(),
+                            IOobject::MUST_READ,
+                            IOobject::NO_WRITE
+                        );
+
                         triSurface* bnd = new triSurface(surfFile.filePath());
                         addTriFace(patchJ, bnd);
-                        _bndUseIntEdges[patchJ] = readBool
-                        (
-                            patchDic.lookup("internalFeatureEdges")
-                        );
-                        Info<< "        - Use internal edges : "
-                            << _bndUseIntEdges[patchJ] << nl;
+
+                        if (patchDic.found("internalFeatureEdges"))
+                        {
+                            _bndUseIntEdges[patchJ] = readBool
+                            (
+                                patchDic.lookup("internalFeatureEdges")
+                            );
+
+                            Info<< "        - Use internal edges : "
+                                << _bndUseIntEdges[patchJ] << nl;
+                        }
+                        else
+                        {
+                            _bndUseIntEdges[patchJ] = false;
+                        }
+
+                        if (patchDic.found("boundaryLayer"))
+                        {
+                            _bndLayers[patchJ] = SmootherBoundaryLayer
+                            (
+                                patchDic.subDict("boundaryLayer")
+                            );
+                        }
                     }
                 }
 
@@ -106,7 +130,7 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
                         << "Patch " << bndDefined[patchI]
                         << " definied in smootherDict is not existing in "
                         << "polyMesh, existing patch in polyMesh ares: "
-                        << bM.names();
+                        << bM.names() << nl;
                 }
             }
         }
@@ -114,9 +138,15 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
     Info<< nl;
 }
 
-void Foam::SmootherBoundary::analyseFeatures()
+labelList Foam::SmootherBoundary::analyseFeatures
+(
+    List<labelHashSet> &pp,
+    std::set<std::set<label> >& fP
+)
 {
     Info<< "  Analyse features" << nl;
+
+    labelList pointType(_polyMesh->nPoints(), INTERIOR);
 
     forAll(_polyMesh->boundaryMesh(), patchI)
     {
@@ -149,7 +179,7 @@ void Foam::SmootherBoundary::analyseFeatures()
             _featureAngle
         );
 
-        markPts(sF, s2p, _bndUseIntEdges[patchI]);
+        markPts(sF, s2p, _bndUseIntEdges[patchI], pointType, pp, fP);
 
         if (_triSurfSearchList[patchI] == 0)
         { // Store trisurface from blockMesh
@@ -157,6 +187,63 @@ void Foam::SmootherBoundary::analyseFeatures()
             addTriFace(patchI, triSurf);
         }
     }
+
+    // If use internal edges, mark feature points
+    const scalar minCos = Foam::cos(degToRad(180.0 - _featureAngle));
+    const pointField& polyPts = _polyMesh->points();
+    forAll(pp, ptI)
+    {
+        if (pointType[ptI] == EDGE)
+        {
+            // Test if one of the feature surface don't use internal edges
+            labelHashSet& featSet = _pointFeatureSet[ptI];
+            bool canBeVertex = true;
+            for
+            (
+                labelHashSet::iterator featI = featSet.begin();
+                featI != featSet.end() && canBeVertex;
+                ++featI
+            )
+            {
+                canBeVertex = _bndUseIntEdges[featI.key()];
+            }
+
+            if (canBeVertex)
+            {
+                if (pp[ptI].size() == 2)
+                { // Feature edge, check angle
+
+                    DynamicList<vector> v(2);
+                    forAllConstIter(labelHashSet, pp[ptI],neiI)
+                    {
+                        v.append(polyPts[neiI.key()] - polyPts[ptI]);
+                        v.last() /= mag(v.last());
+                    }
+
+                    if (mag(v[0] & v[1]) < minCos)
+                    {
+                        pointType[ptI] = VERTEX;
+                    }
+
+
+                }
+    //            Info<< ptI << " - ";
+    //            forAllConstIter(labelHashSet, pp[ptI], ppI)
+    //            {
+    //                Info<< ppI.key() << " ";
+    //            }
+    //            Info<< nl;
+
+                else if (pp[ptI].size() > 2)
+                { // Feature point
+
+                    pointType[ptI] = VERTEX;
+                }
+            }
+        }
+    }
+
+    return pointType;
 }
 
 void Foam::SmootherBoundary::addTriFace
@@ -175,9 +262,14 @@ void Foam::SmootherBoundary::addTriFace
         surfBafReg[patchI] = (pBM[patchI].type() == "baffle");
     }
 
-    surfaceFeatures* sF;
-    sF = new surfaceFeatures(*triSurf, _featureAngle, 0, 0, false);
-    sF->trimFeatures(_minFeatureEdgeLength, _minEdgeForFeature, _featureAngle);
+    surfaceFeatures* sF = new surfaceFeatures
+    (
+        *triSurf,
+        _featureAngle,
+        _minFeatureEdgeLength,
+        _minEdgeForFeature,
+        false
+    );
 
     _extEdgMeshList[patch] = new extendedEdgeMesh(*sF, surfBafReg);
     _surfFeatList[patch] = sF;
@@ -224,6 +316,8 @@ Foam::List<Foam::labelledTri> Foam::SmootherBoundary::analyseBoundaryFace
                     ptTri[ptI] = ref;
 
                     _pointFeature[f[ptPoly[ptI]]] = patchI;
+                    labelHashSet& featureSet = _pointFeatureSet[f[ptPoly[ptI]]];
+                    featureSet.insert(patchI);
                 }
             }
 
@@ -249,32 +343,73 @@ void Foam::SmootherBoundary::markPts
 (
     surfaceFeatures* surfFeat,
     std::map<label,label> &s2p,
-    const bool uE
+    const bool uE,
+    labelList &pointType,
+    List<labelHashSet>& pp,
+    std::set<std::set<label> >& fP
 )
 {
     const triSurface& triSurf = surfFeat->surface();
     const edgeList& edgeLst = triSurf.edges();
     const labelList& featEdges = surfFeat->featureEdges();
 
+    // Store faces points
+    forAll(triSurf, faceI)
+    {
+        std::set<label> facePt;
+        forAll(triSurf[faceI], ptI)
+        {
+            facePt.insert(s2p[triSurf[faceI][ptI]]);
+        }
+        fP.insert(facePt);
+    }
+
     // Mark boundary points
     forAll(edgeLst, boundaryEdgI)
     {
         const edge& edg = edgeLst[boundaryEdgI];
 
-        _pointType[s2p[edg.start()]] = BOUNDARY;
-        _pointType[s2p[edg.end()]] = BOUNDARY;
+        pointType[s2p[edg.start()]] = BOUNDARY;
+        pointType[s2p[edg.end()]] = BOUNDARY;
     }
 
-    if (!uE)
+    // Create set of edges existing in polyMesh
+    std::set<std::set<label> >  polyMeshEdges;
+    forAll(_polyMesh->edges(), edgeI)
     {
+        std::set<label> edgeDef;
+        edgeDef.insert(_polyMesh->edges()[edgeI].first());
+        edgeDef.insert(_polyMesh->edges()[edgeI].last());
+
+        polyMeshEdges.insert(edgeDef);
+    }
+
+    // Mark feature edges points
+    if (!uE)
+    { // If use internal feature edge, mark boundary edges only
+
         forAll(featEdges, edgeI)
         {
             if (triSurf.edgeFaces()[featEdges[edgeI]].size() == 1)
             {
                 const edge& edg = edgeLst[featEdges[edgeI]];
 
-                _pointType[s2p[edg.start()]] = EDGE;
-                _pointType[s2p[edg.end()]] = EDGE;
+                const label pt1 = s2p[edg.start()];
+                const label pt2 = s2p[edg.end()];
+
+                // Test if edge is a polyMesh edge, dont know why but some time
+                // the triSurface feature edge is not a polyMeshEdge..
+                std::set<label> edgeDef;
+                edgeDef.insert(pt1);
+                edgeDef.insert(pt2);
+                if (polyMeshEdges.find(edgeDef) != polyMeshEdges.end())
+                {
+                    pointType[pt1] = EDGE;
+                    pointType[pt2] = EDGE;
+
+                    pp[pt1].insert(pt2);
+                    pp[pt2].insert(pt1);
+                }
             }
         }
     }
@@ -284,17 +419,88 @@ void Foam::SmootherBoundary::markPts
         {
             const edge& edg = edgeLst[featEdges[edgeI]];
 
-            _pointType[s2p[edg.start()]] = EDGE;
-            _pointType[s2p[edg.end()]] = EDGE;
-        }
+            const label pt1 = s2p[edg.start()];
+            const label pt2 = s2p[edg.end()];
 
-        // Mark vertex points TODO add edges points
-        const labelList& fPts = surfFeat->featurePoints();
-        forAll(fPts, vertexI)
-        {
-            _pointType[s2p[fPts[vertexI]]] = VERTEX;
+            std::set<label> edgeDef;
+            edgeDef.insert(pt1);
+            edgeDef.insert(pt2);
+            if (polyMeshEdges.find(edgeDef) != polyMeshEdges.end())
+            {
+                pointType[pt1] = EDGE;
+                pointType[pt2] = EDGE;
+
+                pp[pt1].insert(pt2);
+                pp[pt2].insert(pt1);
+            }
         }
     }
+
+
+//    // Mark vertex points TODO add edges points
+//    const labelList& fPts = surfFeat->featurePoints();
+//    forAll(fPts, vertexI)
+//    {
+//        pointType[s2p[fPts[vertexI]]] = VERTEX;
+//    }
+}
+
+void Foam::SmootherBoundary::createPoints(labelList &pointType)
+{
+    label nbVertex = 0, nbEdge = 0, nbBoundary = 0, nbInterior = 0;
+
+    forAll(pointType, ptI)
+    {
+        if (pointType[ptI] == VERTEX)
+        {
+            ++nbVertex;
+            _point[ptI] = new SmootherVertex(ptI, _polyMesh->points()[ptI]);
+            _featuresPoint.insert(ptI);
+        }
+        else if (pointType[ptI] == EDGE)
+        {
+            ++nbEdge;
+            _point[ptI] = new SmootherEdge
+            (
+                ptI,
+                _pointFeature[ptI],
+                _polyMesh->points()[ptI]
+            );
+
+            if (!_bndIsSnaped[_pointFeature[ptI]])
+            {
+                _unsnapedPoint.insert(ptI);
+            }
+            _featuresPoint.insert(ptI);
+        }
+        else if (pointType[ptI] == BOUNDARY)
+        {
+            ++nbBoundary;
+            _point[ptI] = new SmootherSurface
+            (
+                ptI,
+                _pointFeature[ptI],
+                _polyMesh->points()[ptI]
+            );
+
+            if (!_bndIsSnaped[_pointFeature[ptI]])
+            {
+                _unsnapedPoint.insert(ptI);
+            }
+            _featuresPoint.insert(ptI);
+        }
+        else if (pointType[ptI] == INTERIOR)
+        {
+            ++nbInterior;
+            _point[ptI] = new SmootherPoint(ptI, _polyMesh->points()[ptI]);
+            _interiorPoint.insert(ptI);
+        }
+    }
+
+    Info<< "      - Number of feature points:  " << nbVertex << nl
+        << "      - Number of edge points:     " << nbEdge << nl
+        << "      - Number of boundary points: " << nbBoundary << nl
+        << "      - Number of interior points: " << nbInterior << nl << nl;
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -306,11 +512,18 @@ Foam::SmootherBoundary::SmootherBoundary
 )
 :
     _polyMesh(mesh),
-    _pointType(labelList(_polyMesh->nPoints(), INTERIOR)),
     _point(List<SmootherPoint*>(_polyMesh->nPoints()))
 {
     analyseDict(snapDict);
-    analyseFeatures();
+    List<labelHashSet> pp(mesh->nPoints());
+    std::set<std::set<label> > fP;
+    labelList pointType = analyseFeatures(pp, fP);
+    createPoints(pointType);
+
+    if (_writeFeatures)
+    {
+        writeFeatures(pointType, pp, fP);
+    }
 }
 
 // * * * * * * * * * * * * * * * * Desctructor  * * * * * * * * * * * * * * //
@@ -345,97 +558,206 @@ Foam::SmootherBoundary::~SmootherBoundary()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::SmootherBoundary::createPoints()
+void SmootherBoundary::writeFeatures
+(
+    labelList &pointType,
+    List<labelHashSet> &pp,
+    std::set<std::set<label> >& fP
+) const
 {
-    label nbVertex = 0, nbEdge = 0, nbBoundary = 0, nbInterior = 0;
+    const pointField& pt = _polyMesh->points();
 
-    forAll(_pointType, ptI)
-    {
-        if (_pointType[ptI] == VERTEX)
-        {
-            ++nbVertex;
-            _point[ptI] = new SmootherVertex(ptI);
-            _featuresPoint.insert(ptI);
-        }
-        else if (_pointType[ptI] == EDGE)
-        {
-            ++nbEdge;
-            _point[ptI] = new SmootherEdge(ptI, _pointFeature[ptI]);
-
-            if (!_bndIsSnaped[_pointFeature[ptI]])
-            {
-                _unsnapedPoint.insert(ptI);
-            }
-            _featuresPoint.insert(ptI);
-        }
-        else if (_pointType[ptI] == BOUNDARY)
-        {
-            ++nbBoundary;
-            _point[ptI] = new SmootherSurface(ptI, _pointFeature[ptI]);
-
-            if (!_bndIsSnaped[_pointFeature[ptI]])
-            {
-                _unsnapedPoint.insert(ptI);
-            }
-            _featuresPoint.insert(ptI);
-        }
-        else if (_pointType[ptI] == INTERIOR)
-        {
-            ++nbInterior;
-            _point[ptI] = new SmootherPoint(ptI);
-            _interiorPoint.insert(ptI);
-        }
-    }
-    //writeFeaturesEdges();
-
-    Info<< "      - Number of feature points:  " << nbVertex << nl
-        << "      - Number of edge points:     " << nbEdge << nl
-        << "      - Number of boundary points: " << nbBoundary << nl
-        << "      - Number of interior points: " << nbInterior << nl << nl;
-}
-#include <sstream>
-void SmootherBoundary::writeFeaturesEdges() const
-{
-
-    labelHashSet edgesPt;
-    std::ofstream eOutClean("edgeDir.vtk");
-    eOutClean.close();
-    std::ofstream eOut("edgeDir.vtk", std::ios::app);
+    // ------------------------------------------------------------------------
+    // Feature points
+    labelHashSet vertexPt;
+    std::ofstream vOutClean("featurePoints.vtk");
+    vOutClean.close();
+    std::ofstream vOut("featurePoints.vtk", std::ios::app);
 
     // Write header
-    eOut<< "# vtk DataFile Version 2.0" << nl
-        << "blockMeshDict edges as vtk" << nl
-        << "ASCII" << nl << nl
-        << "DATASET POLYDATA" << nl;
+    vOut<< "# vtk DataFile Version 2.0" << nl << "mesh vertex as vtk" << nl
+        << "ASCII" << nl << nl << "DATASET POLYDATA" << nl;
 
-    forAll(_pointType, ptI)
+    forAll(pointType, ptI)
     {
-        if (_pointType[ptI] == VERTEX || _pointType[ptI] == EDGE)
+        if (pointType[ptI] == VERTEX)
         {
-            edgesPt.insert(ptI);
+            vertexPt.insert(ptI);
         }
     }
 
-    eOut<< "POINTS " << edgesPt.size() << " float" << nl;
-    forAllConstIter(labelHashSet, edgesPt, ptI)
+    // Write points
+    vOut<< "POINTS " << vertexPt.size() << " float" << nl;
+    forAllConstIter(labelHashSet, vertexPt, ptI)
     {
-        eOut<< _polyMesh->points()[ptI.key()].x() << " "
-            << _polyMesh->points()[ptI.key()].y() << " "
-            << _polyMesh->points()[ptI.key()].z() << nl;
+        const label& ptR = ptI.key();
+        vOut<< pt[ptR].x() << " " << pt[ptR].y() << " " << pt[ptR].z() << nl;
     }
+
+    vOut.close();
+
+    // ------------------------------------------------------------------------
+    // Feature edges initial
+    std::ofstream eOutClean("featureEdges.vtk");
+    eOutClean.close();
+    std::ofstream eOut("featureEdges.vtk", std::ios::app);
+
+    // Map of points poly to vtk ref
+    std::map<label, label> p2vtk;
+    std::set<std::set<label> > edges;
+    forAll(pointType, ptI)
+    {
+        if (pointType[ptI] == VERTEX || pointType[ptI] == EDGE)
+        {
+            p2vtk.insert(std::pair<label, label>(ptI, p2vtk.size()));
+
+            forAllConstIter(labelHashSet, pp[ptI], ePtI)
+            {
+                std::set<label> edgePt;
+                edgePt.insert(ptI);
+                edgePt.insert(ePtI.key());
+
+                edges.insert(edgePt);
+            }
+        }
+    }
+
+    // Write header
+    eOut<< "# vtk DataFile Version 2.0" << nl << "mesh edges as vtk" << nl
+        << "ASCII" << nl << nl << "DATASET POLYDATA" << nl;
+
+    // Write points
+    eOut<< "POINTS " << p2vtk.size() << " float" << nl;
+    for
+    (
+        std::map<label, label>::iterator ptI = p2vtk.begin();
+        ptI != p2vtk.end();
+        ++ptI
+    )
+    {
+        const label& ptR = ptI->first;
+        eOut<< pt[ptR].x() << " " << pt[ptR].y() << " " << pt[ptR].z() << nl;
+    }
+
+    // Write lines
+    eOut<< nl << "LINES " << edges.size() << " " << edges.size()*3 << nl;
+    for
+    (
+        std::set<std::set<label> >::iterator edgeI = edges.begin();
+        edgeI != edges.end();
+        ++edgeI
+    )
+    {
+        eOut<< 2 << " "
+            << p2vtk.at(*(*edgeI).begin()) << " "
+            << p2vtk.at(*(*edgeI).rbegin()) << nl;
+    }
+
     eOut.close();
 
-//    forAll(_surfFeatList, featI)
-//    {
-//        std::ostringstream s;
-//        s << "features" << featI;
-//        _surfFeatList[featI]->writeObj(s.str());
-//    }
+    // ------------------------------------------------------------------------
+    // Boundary
+    std::ofstream bOutClean("boundary.vtk");
+    bOutClean.close();
+    std::ofstream bOut("boundary.vtk", std::ios::app);
+
+    std::map<label, label> p2vtk2;
+    forAll(pointType, ptI)
+    {
+        if (pointType[ptI] == VERTEX || pointType[ptI] == EDGE || pointType[ptI] == BOUNDARY)
+        {
+            p2vtk2.insert(std::pair<label, label>(ptI, p2vtk2.size()));
+        }
+    }
+
+    // Write header
+    bOut<< "# vtk DataFile Version 2.0" << nl << "mesh boundarys as vtk" << nl
+        << "ASCII" << nl << nl << "DATASET POLYDATA" << nl;
+
+    // Write points
+    bOut<< "POINTS " << p2vtk2.size() << " float" << nl;
+    for
+    (
+        std::map<label, label>::iterator ptI = p2vtk2.begin();
+        ptI != p2vtk2.end();
+        ++ptI
+    )
+    {
+        const label& ptR = ptI->first;
+        bOut<< pt[ptR].x() << " " << pt[ptR].y() << " " << pt[ptR].z() << nl;
+    }
+
+    // Write triangles
+    bOut<< nl << "POLYGONS " << fP.size() << " " << fP.size()*4 << nl;
+    for
+    (
+        std::set<std::set<label> >::iterator faceI = fP.begin();
+        faceI != fP.end();
+        ++faceI
+    )
+    {
+        bOut<< 3;
+
+        for
+        (
+            std::set<label>::iterator ptI = faceI->begin();
+            ptI != faceI->end();
+            ++ptI
+        )
+        {
+            bOut<< " " << p2vtk2.at(*ptI);
+        }
+        bOut<< nl;
+    }
+
+    bOut.close();
+
+    // ------------------------------------------------------------------------
+    // Interior points
+    labelHashSet interiorPt;
+    std::ofstream iOutClean("interiorPoints.vtk");
+    iOutClean.close();
+    std::ofstream iOut("interiorPoints.vtk", std::ios::app);
+
+    // Write header
+    iOut<< "# vtk DataFile Version 2.0" << nl << "mesh points as vtk" << nl
+        << "ASCII" << nl << nl << "DATASET POLYDATA" << nl;
+
+    forAll(pointType, ptI)
+    {
+        if (pointType[ptI] == INTERIOR)
+        {
+            interiorPt.insert(ptI);
+        }
+    }
+
+    // Write points
+    iOut<< "POINTS " << interiorPt.size() << " float" << nl;
+    forAllConstIter(labelHashSet, interiorPt, ptI)
+    {
+        const label& ptR = ptI.key();
+        iOut<< pt[ptR].x() << " " << pt[ptR].y() << " " << pt[ptR].z() << nl;
+    }
+
+    iOut.close();
 }
 
 void Foam::SmootherBoundary::removeSnapPoint(const label ref)
 {
     _unsnapedPoint.erase(ref);
+}
+
+void SmootherBoundary::writeAllSurfaces(const label iterRef) const
+{
+    forAll(_triSurfSearchList, surfI)
+    {
+        std::ostringstream oss;
+        oss << _triSurfSearchList[surfI]->surface().patches().begin()->name()
+            << "-" << "Iter-" << iterRef
+            << ".obj";
+        _triSurfSearchList[surfI]->surface().write(oss.str());
+    }
+
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

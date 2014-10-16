@@ -40,7 +40,7 @@ class SmootherVertex
     public SmootherPoint
 {
 public:
-    SmootherVertex(const label ref);
+    SmootherVertex(const label ref, const point &pt);
 
     void GETMeSmooth() {_movedPt = _initialPt;}
     void snap(){_movedPt = _initialPt;}

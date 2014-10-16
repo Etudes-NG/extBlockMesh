@@ -9,7 +9,8 @@ EXE_INC = \
     -I$(LIB_SRC)/triSurface/lnInclude \
     -I$(EXTBLOCKMESH_CODE)/MeshSmoother \
     -I$(EXTBLOCKMESH_CODE)/MeshSmoother/Point \
-    -I$(EXTBLOCKMESH_CODE)/MeshSmoother/Point/Features
+    -I$(EXTBLOCKMESH_CODE)/MeshSmoother/Point/Features \
+    -I$(EXTBLOCKMESH_CODE)/MeshSmoother/BoundaryLayer
 
 EXE_LIBS = \
     -lblockMesh \

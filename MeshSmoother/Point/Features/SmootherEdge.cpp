@@ -28,9 +28,14 @@ License
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::SmootherEdge::SmootherEdge(const label ref, const label featureRef)
+Foam::SmootherEdge::SmootherEdge
+(
+    const label ref,
+    const label featureRef,
+    const point& pt
+)
 :
-    SmootherFeature(ref, featureRef)
+    SmootherFeature(ref, featureRef, pt)
 {
 }
 
@@ -44,20 +49,21 @@ void Foam::SmootherEdge::GETMeSmooth()
 
 void SmootherEdge::snap()
 {
-    const labelList& pp = _polyMesh->pointPoints(_ptRef);
-    label nbPt = 0;
-    _movedPt = point(0.0, 0.0, 0.0);
-    forAll(pp, ptI)
-    {
-        if (_bnd->pt(pp[ptI])->isEdge())
-        {
-            _movedPt += _bnd->pt(pp[ptI])->getInitialPoint();
-            ++nbPt;
-        }
-    }
-    _movedPt /= nbPt;
+//    const labelList& pp = _polyMesh->pointPoints(_ptRef);
+//    label nbPt = 0;
+//    _movedPt = point(0.0, 0.0, 0.0);
+//    forAll(pp, ptI)
+//    {
+//        if (_bnd->pt(pp[ptI])->isEdge())
+//        {
+//            _movedPt += _bnd->pt(pp[ptI])->getInitialPoint();
+//            ++nbPt;
+//        }
+//    }
+//    _movedPt /= nbPt;
 
-    _movedPt = _bnd->snapToEdge(_featureRef, _movedPt);
+//    _movedPt = _bnd->snapToEdge(_featureRef, _movedPt);
+    _movedPt = _bnd->snapToEdge(_featureRef, _initialPt);
 }
 
 void SmootherEdge::featLaplaceSmooth()

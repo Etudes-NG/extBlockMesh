@@ -65,6 +65,8 @@ class SmootherCell
         inline const point& initPt(const label p) const;
         inline const point& relaxPt(const label p) const;
 
+        scalar fastPow(const scalar& s) const;
+
 public:
 
     //- Constructors

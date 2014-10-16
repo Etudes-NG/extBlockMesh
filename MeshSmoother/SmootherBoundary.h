@@ -35,7 +35,10 @@ License
 #include "triSurfaceMesh.H"
 #include "surfaceFeatures.H"
 
+#include "SmootherBoundaryLayer.h"
+
 #include <map>
+#include <set>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -57,7 +60,10 @@ class SmootherBoundary
             INTERIOR,
             BOUNDARY,
             EDGE,
-            VERTEX
+            VERTEX,
+            INTERIOR_BL1,
+            INTERIOR_BL2,
+            INTERIOR_BL3
         };
 
         // Pointer to polyMesh
@@ -71,13 +77,14 @@ class SmootherBoundary
         List<surfaceFeatures*> _surfFeatList;
         List<extendedEdgeMesh*> _extEdgMeshList;
 
-        // Map of boundary name
+        // Parameter of patch
         boolList _bndUseIntEdges;
         boolList _bndIsSnaped;
+        List<SmootherBoundaryLayer> _bndLayers;
 
-        // Point types and feature ref
-        labelList _pointType;
+        // Point and patch feature ref
         std::map<label, label> _pointFeature;
+        std::map<label, labelHashSet> _pointFeatureSet;
 
         // Point as SmootherPoints
         List<SmootherPoint*> _point;
@@ -91,12 +98,17 @@ class SmootherBoundary
         scalar _featureAngle;
         scalar _minFeatureEdgeLength;
         label _minEdgeForFeature;
+        bool _writeFeatures;
 
     //- Private member functions
 
         void analyseDict(dictionary &snapDict);
 
-        void analyseFeatures();
+        labelList analyseFeatures
+        (
+            List<labelHashSet>& pp,
+            std::set<std::set<label> >& fP
+        );
 
         void addTriFace(const label patch, triSurface *triSurf);
 
@@ -113,8 +125,13 @@ class SmootherBoundary
         (
             surfaceFeatures *surfFeat,
             std::map<label, label> &s2p,
-            const bool uE
+            const bool uE,
+            labelList &pointType,
+            List<labelHashSet>& pp,
+            std::set<std::set<label> >& fP
         );
+
+        void createPoints(labelList &pointType);
 
 public:
 
@@ -133,17 +150,22 @@ public:
 
         SmootherPoint* pt(const label p) const {return _point[p];}
 
-        void createPoints();
-
         // Get hash set of specific points
         const labelHashSet& unSnapedPoints() const {return _unsnapedPoint;}
         const labelHashSet& interiorPoints() const {return _interiorPoint;}
         const labelHashSet& featuresPoints() const {return _featuresPoint;}
 
         // Write edges as VTK points
-        void writeFeaturesEdges() const;
+        void writeFeatures
+        (
+            labelList& pointType,
+            List<labelHashSet>& pp,
+            std::set<std::set<label> >& fP
+        ) const;
 
         void removeSnapPoint(const label ref);
+
+        void writeAllSurfaces(const label iterRef) const;
 };
 
 point SmootherBoundary::snapToSurf(const label r, const point &pt) const

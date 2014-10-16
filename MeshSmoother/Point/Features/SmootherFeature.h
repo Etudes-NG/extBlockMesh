@@ -49,8 +49,11 @@ protected:
         // Feature ref
         label _featureRef;
 
+        // Snaped point
+        point _snapPoint;
+
 public:
-    SmootherFeature(const label ref, const label featureRef);
+    SmootherFeature(const label ref, const label featureRef, const point &pt);
 
     ~SmootherFeature() {}
 

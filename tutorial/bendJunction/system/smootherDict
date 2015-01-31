@@ -58,7 +58,7 @@ snapControls
     minEdgeForFeature            0;
     minFeatureEdgeLength         1e-20;
 
-    boundarys
+    boundaries
     {
         // List of boundary for wich you want a specific behavior: 
         // - snap to triSurface -> give the triSurface name

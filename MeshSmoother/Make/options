@@ -12,12 +12,9 @@ EXE_INC = \
     -I$(EXTBLOCKMESH_CODE)/MeshSmoother/Point/Features \
     -I$(EXTBLOCKMESH_CODE)/MeshSmoother/BoundaryLayer
 
-EXE_LIBS = \
+LIB_LIBS = \
     -lblockMesh \
     -lmeshTools \
     -ledgeMesh \
     -lfiniteVolume \
     -ldynamicMesh
-    
-    
-    

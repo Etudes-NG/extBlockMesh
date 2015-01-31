@@ -16,4 +16,3 @@ EXE_LIBS = \
     -ldynamicMesh \
     -L$(FOAM_USER_LIBBIN) \
     -lMeshSmoother
-

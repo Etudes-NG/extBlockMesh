@@ -58,11 +58,11 @@ void Foam::SmootherBoundary::analyseDict(dictionary &snapDict)
     _bndIsSnaped.resize(NbPolyPatchs, true);
     _bndLayers.resize(NbPolyPatchs);
 
-    if (snapDict.found("boundarys"))
+    if (snapDict.found("boundaries"))
     {
         Info<< "    - Boundary specifications    : " << nl;
 
-        const dictionary& bndDict = snapDict.subDict("boundarys");
+        const dictionary& bndDict = snapDict.subDict("boundaries");
         wordList bndDefined = bndDict.toc();
 
         forAll(bndDefined, patchI)
@@ -671,7 +671,7 @@ void SmootherBoundary::writeFeatures
     }
 
     // Write header
-    bOut<< "# vtk DataFile Version 2.0" << nl << "mesh boundarys as vtk" << nl
+    bOut<< "# vtk DataFile Version 2.0" << nl << "mesh boundaries as vtk" << nl
         << "ASCII" << nl << nl << "DATASET POLYDATA" << nl;
 
     // Write points
